@@ -10,11 +10,7 @@
 //      to create the scores table (then remove ?setup=1 from URL)
 // =====================================================================
 
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'YOUR_DB_NAME');    // e.g. r94r_irondome
-define('DB_USER', 'YOUR_DB_USER');    // e.g. r94r_ironuser
-define('DB_PASS', 'YOUR_DB_PASS');    // your db password
-define('TOKEN_SECRET', 'CHANGE_THIS_TO_A_RANDOM_32_CHAR_STRING'); // openssl rand -hex 16
+require __DIR__ . '/config.php'; // DB_HOST, DB_NAME, DB_USER, DB_PASS, TOKEN_SECRET
 
 // ---- CORS – allow requests from GitHub Pages + localhost ----
 $allowed = [
