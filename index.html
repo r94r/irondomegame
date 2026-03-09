@@ -1702,7 +1702,7 @@ const G = {
 
   _overlayOpen(){
     return ['how-to-play','highscore-modal','leaderboard-modal','game-over','game-win']
-      .some(id=>{ const el=document.getElementById(id); return el&&el.style.display!=='none'; });
+      .some(id=>{ const el=document.getElementById(id); return el&&getComputedStyle(el).display!=='none'; });
   },
   _update(dt){
     if(this.state==='paused' || this._overlayOpen()) return;
