@@ -959,8 +959,9 @@ function makeWave(n) {
   const l  = n < 2 ? 0 : 1 + Math.floor((n - 1) * 0.9 + surge * 2);
   const iv = Math.max(600, 2400 - n * 190);  // spawn interval ms, min 0.6s
   const spdMult = 1 + n * 0.07;              // missiles get 7% faster each wave
-  const bonusDavid = 3 + Math.floor(surge);
-  const bonusArrow = n < 2 ? 1 : 2 + Math.floor(surge * 0.5);
+  // Give enough ammo to cover ~90% of incoming missiles — keeps it tight but fair
+  const bonusDavid = Math.max(3, Math.ceil(m * 0.9));
+  const bonusArrow = Math.max(1, l + Math.ceil(m * 0.15)); // covers large + overflow for medium
   return { s, m, l, iv, spdMult, bonusDavid, bonusArrow };
 }
 
