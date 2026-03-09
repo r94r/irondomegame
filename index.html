@@ -146,6 +146,80 @@ body {
 .bh.half { background:#aa2; border-color:#882; }
 .bh.dead { background:#422; border-color:#311; }
 
+/* ---- Shared modal styles ---- */
+.modal-overlay {
+  position:absolute; inset:0;
+  background:rgba(2,6,20,.88);
+  z-index:45;
+  display:flex; align-items:center; justify-content:center;
+  pointer-events:all;
+  backdrop-filter:blur(5px);
+}
+.modal-box {
+  background:rgba(4,12,34,.97);
+  border:1px solid rgba(70,160,255,.4);
+  border-radius:18px;
+  padding:28px 24px 24px;
+  text-align:center;
+  color:#fff;
+  width:90%; max-width:320px;
+  box-shadow:0 8px 40px rgba(0,0,0,.7);
+}
+.modal-icon { font-size:36px; margin-bottom:8px; }
+.modal-title { font-size:22px; font-weight:900; letter-spacing:3px; margin-bottom:4px; }
+.modal-sub { font-size:12px; color:#88aacc; margin:10px 0 12px; }
+#hs-score-display {
+  font-size:34px; font-weight:900; color:#ffd700;
+  text-shadow:0 0 20px #ffd70088;
+  margin:4px 0;
+}
+#hs-name-input {
+  width:100%; padding:10px 14px;
+  background:rgba(255,255,255,.07);
+  border:1px solid rgba(70,160,255,.4);
+  border-radius:8px; color:#fff;
+  font-size:16px; text-align:center;
+  outline:none; margin-bottom:14px;
+  transition:border-color .2s;
+}
+#hs-name-input:focus { border-color:#4af; }
+#hs-name-input::placeholder { color:#446; }
+.modal-btns { display:flex; gap:10px; justify-content:center; }
+.rbtn-ghost {
+  padding:9px 20px;
+  background:transparent;
+  border:1px solid rgba(70,160,255,.35);
+  border-radius:8px; color:#88aacc;
+  font-size:14px; cursor:pointer;
+  touch-action:manipulation;
+  transition:border-color .15s, color .15s;
+}
+.rbtn-ghost:hover { border-color:#4af; color:#fff; }
+#hs-status { font-size:11px; color:#88aacc; margin-top:8px; min-height:16px; }
+/* Leaderboard list */
+#lb-list {
+  width:100%; margin-top:12px;
+  display:flex; flex-direction:column; gap:5px;
+}
+.lb-row {
+  display:grid; grid-template-columns:28px 1fr auto auto;
+  align-items:center; gap:8px;
+  padding:7px 10px;
+  border-radius:8px;
+  background:rgba(255,255,255,.04);
+  font-size:13px;
+}
+.lb-row.lb-top { background:rgba(255,215,0,.08); border:1px solid rgba(255,215,0,.2); }
+.lb-row.lb-me  { background:rgba(74,174,255,.1);  border:1px solid rgba(74,174,255,.3); }
+.lb-rank  { font-weight:900; color:#4af; font-size:14px; }
+.lb-name  { text-align:left; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lb-score { font-weight:900; color:#ffd700; }
+.lb-wave  { font-size:10px; color:#668; }
+.lb-medal { font-size:16px; }
+.lb-empty { color:#446; font-size:13px; padding:16px 0; }
+#lb-local-best { margin-top:10px; font-size:11px; color:#557; }
+.lb-loading { color:#446; font-size:13px; padding:16px 0; animation:pulse .8s ease-in-out infinite alternate; }
+
 /* ---- How To Play overlay ---- */
 #how-to-play {
   position:absolute; inset:0;
@@ -362,8 +436,9 @@ body {
       <div id="city-bar-wrap"><div id="city-bar" style="width:100%"></div></div>
     </div>
 
-    <!-- Sound & Pause -->
+    <!-- Sound, Leaderboard & Pause -->
     <button class="hud-btn" id="sound-btn" onclick="SFX.toggle()" title="Sound">🔊</button>
+    <button class="hud-btn" id="lb-btn" onclick="LB.show()" title="Leaderboard">🏆</button>
     <button class="hud-btn" id="pause-btn" onclick="G.togglePause()" title="Pause">⏸</button>
 
     <!-- Wave -->
@@ -410,6 +485,33 @@ body {
   <h2>PAUSED</h2>
   <p>Press P or tap Resume</p>
   <button class="rbtn" onclick="G.togglePause()">▶ Resume</button>
+</div>
+
+<!-- ---- New High Score ---- -->
+<div id="highscore-modal" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <div class="modal-icon">🏆</div>
+    <h2 class="modal-title" style="color:#ffd700">NEW HIGH SCORE!</h2>
+    <div id="hs-score-display"></div>
+    <p class="modal-sub">Enter your name for the leaderboard:</p>
+    <input id="hs-name-input" type="text" maxlength="16" placeholder="Your name…" autocomplete="off" spellcheck="false">
+    <div class="modal-btns">
+      <button class="rbtn" id="hs-submit-btn" onclick="LB.submitScore()">Submit 🚀</button>
+      <button class="rbtn-ghost" onclick="LB.skipSubmit()">Skip</button>
+    </div>
+    <div id="hs-status"></div>
+  </div>
+</div>
+
+<!-- ---- Leaderboard ---- -->
+<div id="leaderboard-modal" class="modal-overlay" style="display:none">
+  <div class="modal-box" style="min-width:280px;max-width:360px">
+    <div class="modal-icon">🏆</div>
+    <h2 class="modal-title" style="color:#ffd700">LEADERBOARD</h2>
+    <div id="lb-list"></div>
+    <div id="lb-local-best"></div>
+    <button class="rbtn-ghost" style="margin-top:18px" onclick="LB.hide()">Close</button>
+  </div>
 </div>
 
 <div id="how-to-play">
@@ -461,6 +563,86 @@ body {
 
 <script>
 'use strict';
+// =====================================================================
+//  LEADERBOARD  –  PHP/MySQL backend (api.php on your server)
+//  Change API_URL to wherever you host api.php
+// =====================================================================
+const API_URL = 'api.php'; // same folder; change to full URL when on different domain
+
+const LB = {
+  _pending: null,
+
+  checkScore(score, wave){
+    const local = parseInt(localStorage.getItem('id_hiscore')||'0');
+    if(score > local) localStorage.setItem('id_hiscore', score);
+    if(score <= 0) return;
+    this._pending = {score, wave};
+    document.getElementById('hs-score-display').textContent = score.toLocaleString();
+    document.getElementById('hs-name-input').value = localStorage.getItem('id_lastname')||'';
+    document.getElementById('hs-status').textContent = '';
+    document.getElementById('hs-submit-btn').disabled = false;
+    document.getElementById('highscore-modal').style.display = 'flex';
+    setTimeout(()=>document.getElementById('hs-name-input').focus(), 120);
+  },
+
+  async submitScore(){
+    const name = document.getElementById('hs-name-input').value.trim().slice(0,16) || 'Anonymous';
+    const {score, wave} = this._pending;
+    localStorage.setItem('id_lastname', name);
+    document.getElementById('hs-status').textContent = 'Saving…';
+    document.getElementById('hs-submit-btn').disabled = true;
+    try {
+      const res = await fetch(API_URL, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({name, score, wave})
+      });
+      if(!res.ok) throw new Error();
+      document.getElementById('hs-status').textContent = '✓ Saved!';
+      setTimeout(()=>{ this.hide('highscore-modal'); this.show(); }, 800);
+    } catch(e){
+      document.getElementById('hs-status').textContent = '⚠ Server unavailable — score not saved';
+      document.getElementById('hs-submit-btn').disabled = false;
+    }
+  },
+
+  skipSubmit(){ this.hide('highscore-modal'); },
+
+  async show(){
+    if(G.state==='playing') G.togglePause();
+    const el = document.getElementById('lb-list');
+    el.innerHTML = '<div class="lb-loading">Loading…</div>';
+    document.getElementById('lb-local-best').textContent = '';
+    document.getElementById('leaderboard-modal').style.display = 'flex';
+    try {
+      const res = await fetch(API_URL);
+      if(!res.ok) throw new Error();
+      const data = await res.json();
+      if(!data.length){ el.innerHTML='<div class="lb-empty">No scores yet — be the first!</div>'; return; }
+      const medals=['🥇','🥈','🥉'];
+      const me = localStorage.getItem('id_lastname')||'';
+      el.innerHTML = data.map((e,i)=>`
+        <div class="lb-row ${i<3?'lb-top':''} ${e.name===me?'lb-me':''}">
+          <span class="lb-rank">${i<3?medals[i]:i+1}</span>
+          <span class="lb-name">${escHtml(e.name)}</span>
+          <span class="lb-score">${parseInt(e.score).toLocaleString()}</span>
+          <span class="lb-wave">W${e.wave||'?'}</span>
+        </div>`).join('');
+      const local = parseInt(localStorage.getItem('id_hiscore')||'0');
+      if(local>0) document.getElementById('lb-local-best').textContent=`Your local best: ${local.toLocaleString()}`;
+    } catch(e){
+      el.innerHTML='<div class="lb-empty">⚠ Could not reach server</div>';
+    }
+  },
+
+  hide(id='leaderboard-modal'){
+    document.getElementById(id).style.display='none';
+    if(id==='leaderboard-modal' && G.state==='paused') G.togglePause();
+  },
+};
+
+function escHtml(s){ return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
 // =====================================================================
 //  SFX  –  Web Audio API sound engine
 // =====================================================================
@@ -1362,11 +1544,13 @@ const G = {
     this.state='win'; this._hideBanner();
     document.getElementById('w-score').textContent=this.score;
     document.getElementById('game-win').style.display='block';
+    setTimeout(()=>LB.checkScore(this.score, this.wave+1), 600);
   },
   _lose(){
     this.state='gameover'; this._hideBanner();
     document.getElementById('e-score').textContent=this.score;
     document.getElementById('game-over').style.display='block';
+    setTimeout(()=>LB.checkScore(this.score, this.wave+1), 600);
   },
 
   _setupInput(){
@@ -1611,6 +1795,11 @@ const G = {
     if(this.aim.active) this.aim.drawAim(ctx,this.launchX,this.groundY-26,this.curType);
   },
 };
+
+// ---- Name input: submit on Enter ----
+document.getElementById('hs-name-input').addEventListener('keydown', e=>{
+  if(e.key==='Enter') LB.submitScore();
+});
 
 // ---- keyboard shortcuts ----
 document.addEventListener('keydown',e=>{
