@@ -459,6 +459,18 @@ body {
 }
 .rbtn:hover { background:#6cf; }
 
+/* ---- Language toggle ---- */
+#lang-toggle {
+  display:flex; gap:6px; justify-content:center; margin-bottom:10px;
+}
+.lang-btn {
+  background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.2);
+  border-radius:6px; color:#aab; font-size:13px; font-weight:700;
+  padding:4px 14px; cursor:pointer; transition:all .15s;
+}
+.lang-btn.sel {
+  background:rgba(74,174,255,.25); border-color:#4aaeff; color:#fff;
+}
 </style>
 </head>
 <body>
@@ -471,7 +483,7 @@ body {
     <div class="hud-tile" id="tile-score">
       <span class="t-icon">🎯</span>
       <div>
-        <div class="t-lbl">Score</div>
+        <div class="t-lbl" id="score-lbl">Score</div>
         <div class="t-val" id="v-score">0</div>
       </div>
     </div>
@@ -479,7 +491,7 @@ body {
     <!-- City health bar -->
     <div class="hud-tile" id="tile-city">
       <div class="city-header">
-        <span class="city-lbl">🏙 City</span>
+        <span class="city-lbl" id="city-lbl">🏙 City</span>
         <span class="city-pct" id="city-pct">100%</span>
       </div>
       <div id="city-bar-wrap"><div id="city-bar" style="width:100%"></div></div>
@@ -492,7 +504,7 @@ body {
 
     <!-- Wave -->
     <div class="hud-tile" id="tile-wave">
-      <div class="t-lbl">Wave</div>
+      <div class="t-lbl" id="wave-lbl">Wave</div>
       <div class="t-val" id="v-wave">1</div>
     </div>
   </div>
@@ -531,22 +543,22 @@ body {
 </div>
 
 <div id="pause-overlay">
-  <h2>PAUSED</h2>
-  <p>Press P or tap Resume</p>
-  <button class="rbtn" onclick="G.togglePause()">▶ Resume</button>
+  <h2 id="pause-title">PAUSED</h2>
+  <p id="pause-sub">Press P or tap Resume</p>
+  <button class="rbtn" id="pause-resume-btn" onclick="G.togglePause()">▶ Resume</button>
 </div>
 
 <!-- ---- New High Score ---- -->
 <div id="highscore-modal" class="modal-overlay" style="display:none">
   <div class="modal-box">
     <div class="modal-icon">🏆</div>
-    <h2 class="modal-title" style="color:#ffd700">NEW HIGH SCORE!</h2>
+    <h2 class="modal-title" id="hs-title" style="color:#ffd700">NEW HIGH SCORE!</h2>
     <div id="hs-score-display"></div>
-    <p class="modal-sub">Enter your name for the leaderboard:</p>
+    <p class="modal-sub" id="hs-sub">Enter your name for the leaderboard:</p>
     <input id="hs-name-input" type="text" maxlength="16" placeholder="Your name…" autocomplete="off" spellcheck="false">
     <div class="modal-btns">
       <button class="rbtn" id="hs-submit-btn" onclick="LB.submitScore()">Submit 🚀</button>
-      <button class="rbtn-ghost" onclick="LB.skipSubmit()">Skip</button>
+      <button class="rbtn-ghost" id="hs-skip-btn" onclick="LB.skipSubmit()">Skip</button>
     </div>
     <div id="hs-status"></div>
   </div>
@@ -556,16 +568,20 @@ body {
 <div id="leaderboard-modal" class="modal-overlay" style="display:none">
   <div class="modal-box" style="min-width:280px;max-width:360px">
     <div class="modal-icon">🏆</div>
-    <h2 class="modal-title" style="color:#ffd700">LEADERBOARD</h2>
+    <h2 class="modal-title" id="lb-title">LEADERBOARD</h2>
     <div id="lb-list"></div>
     <div id="lb-local-best"></div>
-    <button class="rbtn-ghost" style="margin-top:18px" onclick="LB.hide()">Close</button>
+    <button class="rbtn-ghost" id="lb-close-btn" style="margin-top:18px" onclick="LB.hide()">Close</button>
   </div>
 </div>
 
 <div id="how-to-play">
   <div id="htp-inner">
     <img src="kipod_en.png" alt="Kipod Barzel" id="htp-logo">
+    <div id="lang-toggle">
+      <button id="lang-en" class="lang-btn sel" onclick="applyLang('en')">EN</button>
+      <button id="lang-he" class="lang-btn" onclick="applyLang('he')">עב</button>
+    </div>
     <div id="htp-sub">Defend the city from incoming missiles</div>
     <div id="htp-steps">
       <div class="htp-step">
@@ -575,37 +591,37 @@ body {
           <div class="htp-band" id="htp-b2"></div>
           <div class="htp-arc"></div>
         </div>
-        <div class="htp-text"><strong>Hold &amp; drag</strong> to pull back<br>the launcher</div>
+        <div class="htp-text" id="htp-step1-text"><strong>Hold &amp; drag</strong> to pull back<br>the launcher</div>
       </div>
       <div class="htp-step">
         <div class="htp-anim">
           <span style="font-size:38px">🚀</span>
         </div>
-        <div class="htp-text"><strong>Release</strong> to fire the<br>interceptor</div>
+        <div class="htp-text" id="htp-step2-text"><strong>Release</strong> to fire the<br>interceptor</div>
       </div>
     </div>
     <div id="htp-guide">
       <div id="htp-guide-title">Match interceptor to missile size</div>
       <div class="htp-guide-row">
         <span class="htp-dot" style="color:#ff4444">●</span>
-        <span class="htp-mname">Small</span>
+        <span class="htp-mname" id="mname-small">Small</span>
         <span class="htp-arrow">→</span>
         <span class="htp-key">1</span>
-        <span class="htp-iname" style="color:#4aaeff">Iron Dome</span>
+        <span class="htp-iname" style="color:#4aaeff" id="iname-guide-irondome">Iron Dome</span>
       </div>
       <div class="htp-guide-row">
         <span class="htp-dot" style="color:#ff8844">●</span>
-        <span class="htp-mname">Medium</span>
+        <span class="htp-mname" id="mname-medium">Medium</span>
         <span class="htp-arrow">→</span>
         <span class="htp-key">2</span>
-        <span class="htp-iname" style="color:#ffd84a">David's Sling</span>
+        <span class="htp-iname" style="color:#ffd84a" id="iname-guide-david">David's Sling</span>
       </div>
       <div class="htp-guide-row">
         <span class="htp-dot" style="color:#ff44ff">●</span>
-        <span class="htp-mname">Large</span>
+        <span class="htp-mname" id="mname-large">Large</span>
         <span class="htp-arrow">→</span>
         <span class="htp-key">3</span>
-        <span class="htp-iname" style="color:#ff6aff">Arrow</span>
+        <span class="htp-iname" style="color:#ff6aff" id="iname-guide-arrow">Arrow</span>
       </div>
     </div>
     <button class="rbtn" id="htp-btn" onclick="G.dismissHowToPlay()">Let's Go! 🚀</button>
@@ -613,16 +629,16 @@ body {
 </div>
 
 <div class="end-screen" id="game-over">
-  <h2>CITY DESTROYED</h2>
-  <p class="sub">All buildings have been destroyed.</p>
-  <p class="sc">Score: <strong id="e-score">0</strong></p>
-  <button class="rbtn" onclick="G.restart()">Play Again</button>
+  <h2 id="go-title">CITY DESTROYED</h2>
+  <p class="sub" id="go-sub">All buildings have been destroyed.</p>
+  <p class="sc"><span id="go-score-lbl">Score: </span><strong id="e-score">0</strong></p>
+  <button class="rbtn" id="go-play-again" onclick="G.restart()">Play Again</button>
 </div>
 <div class="end-screen" id="game-win">
-  <h2>DEFENSE SUCCESSFUL</h2>
-  <p class="sub">You survived all waves!</p>
-  <p class="sc">Score: <strong id="w-score">0</strong></p>
-  <button class="rbtn" onclick="G.restart()">Play Again</button>
+  <h2 id="gw-title">DEFENSE SUCCESSFUL</h2>
+  <p class="sub" id="gw-sub">You survived all waves!</p>
+  <p class="sc"><span id="gw-score-lbl">Score: </span><strong id="w-score">0</strong></p>
+  <button class="rbtn" id="gw-play-again" onclick="G.restart()">Play Again</button>
 </div>
 </div><!-- /game-wrap -->
 
@@ -633,6 +649,114 @@ body {
 //  Change API_URL to wherever you host api.php
 // =====================================================================
 const API_URL = 'api.php'; // same folder; change to full URL when on different domain
+
+// =====================================================================
+//  i18n – English / Hebrew
+// =====================================================================
+const STRINGS = {
+  en: {
+    'htp-sub':'Defend the city from incoming missiles',
+    'htp-step1':'<strong>Hold &amp; drag</strong> to pull back<br>the launcher',
+    'htp-step2':'<strong>Release</strong> to fire the<br>interceptor',
+    'htp-guide-title':'Match interceptor to missile size',
+    'mname-small':'Small','mname-medium':'Medium','mname-large':'Large',
+    'iname-irondome':'Iron Dome','iname-david':"David's Sling",'iname-arrow':'Arrow',
+    'itgt-irondome':'vs small','itgt-david':'vs medium','itgt-arrow':'vs large',
+    'htp-btn':"Let's Go! 🚀",
+    'score-lbl':'Score','city-lbl':'🏙 City','wave-lbl':'Wave',
+    'ammo-warn':'No {n} ammo!','wrong-type':'Wrong interceptor type!',
+    'pause-title':'PAUSED','pause-sub':'Press P or tap Resume','pause-resume':'▶ Resume',
+    'hs-title':'NEW HIGH SCORE!','hs-sub':'Enter your name for the leaderboard:',
+    'hs-submit':'Submit 🚀','hs-skip':'Skip',
+    'lb-title':'LEADERBOARD','lb-close':'Close',
+    'go-title':'CITY DESTROYED','go-sub':'All buildings have been destroyed.',
+    'score-prefix':'Score: ','play-again':'Play Again',
+    'gw-title':'DEFENSE SUCCESSFUL','gw-sub':'You survived all waves!',
+    'red-alert':'🚨 RED ALERT 🚨','wave-prefix':'Wave',
+    'wave-clear':'WAVE CLEAR','preparing-next':'Preparing next wave...',
+    'go':'GO!',
+    'saving':'Saving…','saved':'✓ Saved!',
+    'offline-queue':'📶 Offline — will sync when reconnected',
+    'local-best':'Your local best',
+    'no-scores':'No scores yet — be the first!',
+    'loading':'Loading…','server-error':'⚠ Could not reach server',
+    'anonymous':'Anonymous',
+  },
+  he: {
+    'htp-sub':'הגן על העיר מפני טילים נכנסים',
+    'htp-step1':'<strong>לחץ וגרור</strong> לאחור<br>לכיוון הקשת',
+    'htp-step2':'<strong>שחרר</strong> כדי לירות<br>מיירט',
+    'htp-guide-title':'התאם מיירט לגודל הטיל',
+    'mname-small':'קטן','mname-medium':'בינוני','mname-large':'גדול',
+    'iname-irondome':'כיפת ברזל','iname-david':'קלע דוד','iname-arrow':'חץ',
+    'itgt-irondome':'נגד קטן','itgt-david':'נגד בינוני','itgt-arrow':'נגד גדול',
+    'htp-btn':'!יאללה 🚀',
+    'score-lbl':'ניקוד','city-lbl':'🏙 עיר','wave-lbl':'גל',
+    'ammo-warn':'נגמרה תחמושת {n}!','wrong-type':'סוג מיירט שגוי!',
+    'pause-title':'מושהה','pause-sub':'לחץ P או הקש המשך','pause-resume':'▶ המשך',
+    'hs-title':'שיא חדש!','hs-sub':'הכנס שם לטבלת הדירוג:',
+    'hs-submit':'שלח 🚀','hs-skip':'דלג',
+    'lb-title':'טבלת שיאים','lb-close':'סגור',
+    'go-title':'העיר נהרסה','go-sub':'כל הבניינים נהרסו.',
+    'score-prefix':'ניקוד: ','play-again':'שחק שוב',
+    'gw-title':'הגנה הצליחה','gw-sub':'שרדת את כל הגלים!',
+    'red-alert':'🚨 אזעקה אדומה 🚨','wave-prefix':'גל',
+    'wave-clear':'גל הושלם','preparing-next':'מכין גל הבא...',
+    'go':'קדימה!',
+    'saving':'שומר...','saved':'נשמר! ✓',
+    'offline-queue':'📶 אין חיבור — יסונכרן בהתחברות',
+    'local-best':'השיא המקומי שלך',
+    'no-scores':'אין ניקוד עדיין — היה הראשון!',
+    'loading':'טוען...','server-error':'לא ניתן להתחבר לשרת ⚠',
+    'anonymous':'אנונימי',
+  },
+};
+
+let currentLang = localStorage.getItem('id_lang') || 'en';
+function T(key){ return (STRINGS[currentLang]||STRINGS.en)[key] ?? STRINGS.en[key] ?? key; }
+
+function applyLang(lang){
+  currentLang = lang;
+  localStorage.setItem('id_lang', lang);
+  const rtl = lang === 'he';
+  document.getElementById('game-wrap').setAttribute('dir', rtl ? 'rtl' : 'ltr');
+
+  const s = (id,key) => { const e=document.getElementById(id); if(e) e.textContent=T(key); };
+  const h = (id,key) => { const e=document.getElementById(id); if(e) e.innerHTML=T(key); };
+
+  // Intro
+  s('htp-sub','htp-sub'); s('htp-guide-title','htp-guide-title'); s('htp-btn','htp-btn');
+  h('htp-step1-text','htp-step1'); h('htp-step2-text','htp-step2');
+  s('mname-small','mname-small'); s('mname-medium','mname-medium'); s('mname-large','mname-large');
+  s('iname-guide-irondome','iname-irondome'); s('iname-guide-david','iname-david'); s('iname-guide-arrow','iname-arrow');
+  // HUD
+  s('score-lbl','score-lbl'); s('city-lbl','city-lbl'); s('wave-lbl','wave-lbl');
+  // Interceptor buttons
+  document.querySelector('#btn-irondome .iname').textContent = T('iname-irondome');
+  document.querySelector('#btn-david .iname').textContent    = T('iname-david');
+  document.querySelector('#btn-arrow .iname').textContent    = T('iname-arrow');
+  document.querySelector('#btn-irondome .itgt').textContent  = T('itgt-irondome');
+  document.querySelector('#btn-david .itgt').textContent     = T('itgt-david');
+  document.querySelector('#btn-arrow .itgt').textContent     = T('itgt-arrow');
+  // Warnings (base text — JS will fill {n} at runtime)
+  s('wrong-type-warn','wrong-type');
+  // Pause
+  s('pause-title','pause-title'); s('pause-sub','pause-sub'); s('pause-resume-btn','pause-resume');
+  // High score modal
+  s('hs-title','hs-title'); s('hs-sub','hs-sub');
+  s('hs-submit-btn','hs-submit'); s('hs-skip-btn','hs-skip');
+  // Leaderboard
+  s('lb-title','lb-title'); s('lb-close-btn','lb-close');
+  // End screens
+  s('go-title','go-title'); s('go-sub','go-sub');
+  s('go-score-lbl','score-prefix'); s('go-play-again','play-again');
+  s('gw-title','gw-title'); s('gw-sub','gw-sub');
+  s('gw-score-lbl','score-prefix'); s('gw-play-again','play-again');
+  // Lang buttons
+  const enB=document.getElementById('lang-en'), heB=document.getElementById('lang-he');
+  if(enB){ enB.classList.toggle('sel', lang==='en'); }
+  if(heB){ heB.classList.toggle('sel', lang==='he'); }
+}
 
 const LB = {
   _pending: null,
@@ -686,15 +810,15 @@ const LB = {
   },
 
   async submitScore(){
-    const name = document.getElementById('hs-name-input').value.trim().slice(0,16) || 'Anonymous';
+    const name = document.getElementById('hs-name-input').value.trim().slice(0,16) || T('anonymous');
     const {score, wave} = this._pending;
     localStorage.setItem('id_lastname', name);
-    document.getElementById('hs-status').textContent = 'Saving…';
+    document.getElementById('hs-status').textContent = T('saving');
     document.getElementById('hs-submit-btn').disabled = true;
     try {
       await this._postScore(name, score, wave);
       this.fetchToken();
-      document.getElementById('hs-status').textContent = '✓ Saved!';
+      document.getElementById('hs-status').textContent = T('saved');
       setTimeout(()=>{ this.hide('highscore-modal'); this.show(); }, 800);
     } catch(e){
       if(e.serverError){
@@ -705,7 +829,7 @@ const LB = {
         // Network failure — queue for later
         this._queue.push({name, score, wave, ts: Date.now()});
         this._saveQueue();
-        document.getElementById('hs-status').textContent = '📶 Offline — will sync when reconnected';
+        document.getElementById('hs-status').textContent = T('offline-queue');
         setTimeout(()=>{ this.hide('highscore-modal'); }, 1800);
       }
     }
@@ -741,7 +865,7 @@ const LB = {
 
   async show(){
     const el = document.getElementById('lb-list');
-    el.innerHTML = '<div class="lb-loading">Loading…</div>';
+    el.innerHTML = `<div class="lb-loading">${T('loading')}</div>`;
     document.getElementById('lb-local-best').textContent = '';
     document.getElementById('leaderboard-modal').style.display = 'flex';
     try {
@@ -751,7 +875,7 @@ const LB = {
       // Cache board stats for checkScore gating
       this._lbCount = data.length;
       this._minScore = data.length ? parseInt(data[data.length-1].score) : 0;
-      if(!data.length){ el.innerHTML='<div class="lb-empty">No scores yet — be the first!</div>'; return; }
+      if(!data.length){ el.innerHTML=`<div class="lb-empty">${T('no-scores')}</div>`; return; }
       const medals=['🥇','🥈','🥉'];
       const me = localStorage.getItem('id_lastname')||'';
       el.innerHTML = data.map((e,i)=>`
@@ -762,9 +886,9 @@ const LB = {
           <span class="lb-wave">W${e.wave||'?'}</span>
         </div>`).join('');
       const local = parseInt(localStorage.getItem('id_hiscore')||'0');
-      if(local>0) document.getElementById('lb-local-best').textContent=`Your local best: ${local.toLocaleString()}`;
+      if(local>0) document.getElementById('lb-local-best').textContent=`${T('local-best')}: ${local.toLocaleString()}`;
     } catch(e){
-      el.innerHTML='<div class="lb-empty">⚠ Could not reach server</div>';
+      el.innerHTML=`<div class="lb-empty">${T('server-error')}</div>`;
     }
   },
 
@@ -1665,7 +1789,7 @@ const G = {
     // 4s banner: RED ALERT (0.8s) → 3 (1s) → 2 (1s) → 1 (1s) → GO (0.2s) → play
     this.state='banner'; this.bannerT=4.0; this._countStep=-1;
     document.getElementById('v-wave').textContent=this.wave+1;
-    this._showBanner('🚨 RED ALERT 🚨','Wave '+(this.wave+1),'#ff3333','#ffaa00',true);
+    this._showBanner(T('red-alert'),T('wave-prefix')+' '+(this.wave+1),'#ff3333','#ffaa00',true);
   },
 
   _showBanner(title,sub,tcol,scol,pulse){
@@ -1682,7 +1806,7 @@ const G = {
 
   _showBreak(){
     this.state='break'; this.breakT=3.5;
-    this._showBanner('WAVE CLEAR','Preparing next wave...','#44ff44','#aaffaa',false);
+    this._showBanner(T('wave-clear'),T('preparing-next'),'#44ff44','#aaffaa',false);
   },
 
   _win(){
@@ -1759,7 +1883,7 @@ const G = {
   _fire(tx,ty){
     const t=this.curType;
     if(this.ammo[t]!==Infinity && this.ammo[t]<=0){
-      this._warn(document.getElementById('ammo-warn'),`No ${ICP[t].name} ammo!`);
+      this._warn(document.getElementById('ammo-warn'), T('ammo-warn').replace('{n}', T('iname-'+t)));
       return;
     }
     if(this.ammo[t]!==Infinity){ this.ammo[t]--; this._updateAmmoUI(); }
@@ -1853,10 +1977,10 @@ const G = {
       const step = this.bannerT>3.2 ? -1 : this.bannerT>2.2 ? 3 : this.bannerT>1.2 ? 2 : this.bannerT>0.2 ? 1 : 0;
       if(step !== this._countStep){
         this._countStep = step;
-        if(step===3){ this._showBanner('3','Wave '+(this.wave+1),'#ffdd00','#ffaa00',false); }
-        else if(step===2){ this._showBanner('2','Wave '+(this.wave+1),'#ffdd00','#ffaa00',false); }
-        else if(step===1){ this._showBanner('1','Wave '+(this.wave+1),'#ffdd00','#ffaa00',false); }
-        else if(step===0){ this._showBanner('GO!','Wave '+(this.wave+1),'#44ff44','#aaffaa',false); }
+        if(step===3){ this._showBanner('3',T('wave-prefix')+' '+(this.wave+1),'#ffdd00','#ffaa00',false); }
+        else if(step===2){ this._showBanner('2',T('wave-prefix')+' '+(this.wave+1),'#ffdd00','#ffaa00',false); }
+        else if(step===1){ this._showBanner('1',T('wave-prefix')+' '+(this.wave+1),'#ffdd00','#ffaa00',false); }
+        else if(step===0){ this._showBanner(T('go'),T('wave-prefix')+' '+(this.wave+1),'#44ff44','#aaffaa',false); }
       }
       if(this.bannerT<=0){ this.state='playing'; this._hideBanner(); }
       return;
@@ -1966,6 +2090,7 @@ if('serviceWorker' in navigator){
 // ---- Boot ----
 resize();
 G.init();
+applyLang(currentLang);
 // Load offline queue and attempt to sync any pending scores
 LB._loadQueue();
 // Pre-fetch session token + leaderboard so gating is ready before first game ends
