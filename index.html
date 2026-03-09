@@ -265,6 +265,36 @@ body {
 .htp-text { font-size:11px; color:#ccd; line-height:1.5; }
 .htp-text strong { color:#fff; }
 
+#htp-guide {
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(80,150,255,.2);
+  border-radius:12px;
+  padding:12px 16px;
+  margin-bottom:20px;
+  width:100%;
+  box-sizing:border-box;
+}
+#htp-guide-title {
+  font-size:11px; color:#8ab; text-transform:uppercase;
+  letter-spacing:1px; margin-bottom:10px;
+}
+.htp-guide-row {
+  display:flex; align-items:center; gap:8px;
+  padding:5px 0;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  font-size:13px;
+}
+.htp-guide-row:last-child { border-bottom:none; }
+.htp-dot   { font-size:18px; line-height:1; }
+.htp-mname { color:#ccd; width:52px; }
+.htp-arrow { color:#446; font-size:16px; }
+.htp-key   {
+  background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2);
+  border-radius:5px; padding:1px 7px; font-size:12px; color:#fff;
+  font-weight:700; min-width:20px; text-align:center;
+}
+.htp-iname { font-weight:700; }
+
 /* Animated slingshot in step 1 */
 .htp-rocket {
   width:18px; height:7px;
@@ -534,13 +564,29 @@ body {
         </div>
         <div class="htp-text"><strong>Release</strong> to fire the<br>interceptor</div>
       </div>
-      <div class="htp-step">
-        <div class="htp-anim" style="flex-direction:column;gap:2px;font-size:10px;line-height:1.4;height:auto;width:100%">
-          <span>🔴 <strong style="color:#4aaeff">Iron Dome</strong></span>
-          <span>🟠 <strong style="color:#ffd84a">David's Sling</strong></span>
-          <span>🟣 <strong style="color:#ff6aff">Arrow</strong></span>
-        </div>
-        <div class="htp-text"><strong>Match interceptor</strong><br>to missile size</div>
+    </div>
+    <div id="htp-guide">
+      <div id="htp-guide-title">Match interceptor to missile size</div>
+      <div class="htp-guide-row">
+        <span class="htp-dot" style="color:#ff4444">●</span>
+        <span class="htp-mname">Small</span>
+        <span class="htp-arrow">→</span>
+        <span class="htp-key">1</span>
+        <span class="htp-iname" style="color:#4aaeff">Iron Dome</span>
+      </div>
+      <div class="htp-guide-row">
+        <span class="htp-dot" style="color:#ff8844">●</span>
+        <span class="htp-mname">Medium</span>
+        <span class="htp-arrow">→</span>
+        <span class="htp-key">2</span>
+        <span class="htp-iname" style="color:#ffd84a">David's Sling</span>
+      </div>
+      <div class="htp-guide-row">
+        <span class="htp-dot" style="color:#ff44ff">●</span>
+        <span class="htp-mname">Large</span>
+        <span class="htp-arrow">→</span>
+        <span class="htp-key">3</span>
+        <span class="htp-iname" style="color:#ff6aff">Arrow</span>
       </div>
     </div>
     <button class="rbtn" id="htp-btn" onclick="G.dismissHowToPlay()">Let's Go! 🚀</button>
