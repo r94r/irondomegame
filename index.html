@@ -1412,11 +1412,11 @@ function drawLauncher(ctx,x,y,type,sel){
 //  Release fires in the OPPOSITE direction (away from finger).
 // ====================================================================
 class AimGuide {
-  constructor(){ this.active=false; this.fx=0; this.fy=0; this.maxDrag=120; }
+  constructor(){ this.active=false; this.sx=0; this.sy=0; this.fx=0; this.fy=0; this.maxDrag=120; }
 
-  // Clamped pull vector from launcher to finger
-  _pull(lx,ly){
-    let dx=this.fx-lx, dy=this.fy-ly;
+  // Clamped pull vector based on drag delta from start position (not from launcher)
+  _pull(){
+    let dx=this.fx-this.sx, dy=this.fy-this.sy;
     const d=Math.hypot(dx,dy);
     if(d>this.maxDrag){ dx=dx/d*this.maxDrag; dy=dy/d*this.maxDrag; }
     return {dx,dy,d:Math.min(d,this.maxDrag)};
@@ -1428,7 +1428,7 @@ class AimGuide {
     if(!this.active) return;
     // aim guide drawn on main canvas — no clear needed here
 
-    const {dx,dy,d}=this._pull(lx,ly);
+    const {dx,dy,d}=this._pull();
     if(d<4) return;
     const pwr=d/this.maxDrag;
     // Rocket sits at the pulled-back position (clamped)
@@ -1702,6 +1702,7 @@ const G = {
       e.preventDefault();
       const p=pos(e);
       this.aim.active=true;
+      this.aim.sx=p.x; this.aim.sy=p.y;
       this.aim.fx=p.x; this.aim.fy=p.y;
     };
     const MOVE=e=>{
@@ -1714,7 +1715,7 @@ const G = {
       if(!this.aim.active) return;
       e.preventDefault();
       const lx=this.launchX, ly=this.groundY-26;
-      const {dx,dy,d}=this.aim._pull(lx,ly);
+      const {dx,dy,d}=this.aim._pull();
       if(d>10){
         // Launch in opposite direction of pull
         const ang=Math.atan2(-dy,-dx);
