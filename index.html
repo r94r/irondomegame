@@ -1393,9 +1393,11 @@ const G = {
   },
 
   restart(){
-    document.getElementById('game-over').style.display='none';
-    document.getElementById('game-win').style.display='none';
-    document.getElementById('alert-banner').style.display='none';
+    // Cancel any pending high-score prompt from the previous game
+    clearTimeout(this._checkScoreTO);
+    // Hide all overlays
+    ['game-over','game-win','alert-banner','highscore-modal','leaderboard-modal']
+      .forEach(id=>{ document.getElementById(id).style.display='none'; });
     this.missiles=[]; this.interceptors=[]; this.explosions=[];
     this.score=0; this.wave=0; this.curType='irondome';
     this.ammo={irondome:Infinity, david:8, arrow:4};
@@ -1548,13 +1550,13 @@ const G = {
     this.state='win'; this._hideBanner();
     document.getElementById('w-score').textContent=this.score;
     document.getElementById('game-win').style.display='block';
-    setTimeout(()=>LB.checkScore(this.score, this.wave+1), 600);
+    this._checkScoreTO=setTimeout(()=>LB.checkScore(this.score, this.wave+1), 600);
   },
   _lose(){
     this.state='gameover'; this._hideBanner();
     document.getElementById('e-score').textContent=this.score;
     document.getElementById('game-over').style.display='block';
-    setTimeout(()=>LB.checkScore(this.score, this.wave+1), 600);
+    this._checkScoreTO=setTimeout(()=>LB.checkScore(this.score, this.wave+1), 600);
   },
 
   _setupInput(){
@@ -1699,7 +1701,7 @@ const G = {
   },
 
   _overlayOpen(){
-    return ['how-to-play','highscore-modal','leaderboard-modal']
+    return ['how-to-play','highscore-modal','leaderboard-modal','game-over','game-win']
       .some(id=>{ const el=document.getElementById(id); return el&&el.style.display!=='none'; });
   },
   _update(dt){
