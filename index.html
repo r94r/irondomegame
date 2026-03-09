@@ -39,64 +39,109 @@ body {
   pointer-events:none;
   z-index:10;
 }
+/* ---- Top Bar ---- */
 #top-bar {
   display:flex;
-  justify-content:space-between;
-  align-items:flex-start;
-  padding:8px 10px 0;
-  gap:8px;
+  align-items:center;
+  gap:6px;
+  padding:8px 8px 0;
+  pointer-events:all;
 }
-.panel {
-  background:rgba(0,10,30,0.75);
-  border:1px solid #1a6aaa;
-  border-radius:8px;
-  padding:5px 12px;
+/* Shared glass tile */
+.hud-tile {
+  background:rgba(4,14,38,0.82);
+  border:1px solid rgba(50,130,220,0.45);
+  border-radius:10px;
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+  box-shadow:0 2px 8px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.06);
   color:#fff;
-  font-size:12px;
-  min-width:70px;
+  display:flex;
+  align-items:center;
+  gap:5px;
+  padding:5px 10px;
+  white-space:nowrap;
 }
-.panel .lbl { color:#4af; font-size:9px; text-transform:uppercase; letter-spacing:1px; }
-.panel .val { font-size:20px; font-weight:900; line-height:1.1; }
-#pause-btn, #sound-btn {
-  background:rgba(0,10,30,0.75);
-  border:1px solid #1a6aaa;
-  border-radius:8px;
-  padding:5px 11px;
+/* Score */
+#tile-score { flex:0 0 auto; }
+#tile-score .t-icon { font-size:14px; }
+#tile-score .t-lbl { font-size:8px; color:#5aafff; text-transform:uppercase; letter-spacing:.8px; }
+#tile-score .t-val { font-size:19px; font-weight:900; line-height:1; letter-spacing:-.5px; }
+
+/* City health bar */
+#tile-city {
+  flex:1 1 0;
+  flex-direction:column;
+  align-items:stretch;
+  gap:3px;
+  padding:5px 8px;
+}
+#tile-city .city-header {
+  display:flex; justify-content:space-between; align-items:center;
+}
+#tile-city .city-lbl { font-size:8px; color:#5aafff; text-transform:uppercase; letter-spacing:.8px; }
+#tile-city .city-pct { font-size:9px; color:#aaa; font-weight:bold; }
+#city-bar-wrap {
+  background:rgba(0,0,0,.5);
+  border-radius:3px;
+  height:7px;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.08);
+}
+#city-bar {
+  height:100%;
+  border-radius:3px;
+  background:linear-gradient(90deg,#22cc44,#44ff66);
+  transition:width .4s, background .4s;
+}
+
+/* Wave */
+#tile-wave { flex:0 0 auto; flex-direction:column; gap:1px; padding:4px 10px; align-items:center; }
+#tile-wave .t-lbl { font-size:8px; color:#5aafff; text-transform:uppercase; letter-spacing:.8px; }
+#tile-wave .t-val { font-size:19px; font-weight:900; line-height:1; }
+
+/* Icon buttons */
+.hud-btn {
+  background:rgba(4,14,38,0.82);
+  border:1px solid rgba(50,130,220,0.45);
+  border-radius:10px;
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+  box-shadow:0 2px 8px rgba(0,0,0,.4);
   color:#fff;
-  font-size:18px;
+  font-size:16px;
+  width:34px; height:34px;
+  display:flex; align-items:center; justify-content:center;
   cursor:pointer;
   pointer-events:all;
   touch-action:manipulation;
-  line-height:1;
-  transition:background .15s;
-  align-self:flex-start;
+  transition:background .15s, border-color .15s;
+  flex:0 0 auto;
+  padding:0;
 }
-#pause-btn:hover, #sound-btn:hover { background:rgba(0,40,90,.9); }
-#sound-btn.muted { border-color:#555; color:#666; }
+.hud-btn:hover { background:rgba(0,50,120,.85); border-color:#4af; }
+.hud-btn.muted { border-color:rgba(80,80,80,.5); color:#555; }
+
 #pause-overlay {
   position:absolute; top:50%; left:50%;
   transform:translate(-50%,-50%);
-  background:rgba(0,0,0,.88);
-  border:2px solid #4af;
-  border-radius:14px;
-  padding:28px 44px;
+  background:rgba(2,8,24,.93);
+  border:1px solid rgba(50,130,220,.6);
+  border-radius:16px;
+  padding:32px 48px;
   text-align:center;
   z-index:30;
   display:none;
   color:#fff;
+  backdrop-filter:blur(8px);
+  box-shadow:0 8px 32px rgba(0,0,0,.6);
 }
-#pause-overlay h2 { font-size:32px; color:#4af; margin-bottom:16px; letter-spacing:3px; }
+#pause-overlay h2 { font-size:30px; color:#4af; margin-bottom:6px; letter-spacing:4px; }
+#pause-overlay p { color:#667; font-size:12px; margin-bottom:18px; }
 #pause-overlay .rbtn { display:block; margin:0 auto; }
-#buildings-bar {
-  display:flex; gap:4px; align-items:center;
-  background:rgba(0,10,30,0.75);
-  border:1px solid #1a6aaa;
-  border-radius:8px;
-  padding:5px 8px;
-  flex-wrap:wrap;
-  max-width:220px;
-  justify-content:center;
-}
+
+/* Buildings dots (kept for JS, hidden visually in favour of bar) */
+#buildings-bar { display:none; }
 .bh { width:14px; height:6px; border-radius:2px; background:#2a2; border:1px solid #1a1; transition:background .3s; }
 .bh.half { background:#aa2; border-color:#882; }
 .bh.dead { background:#422; border-color:#311; }
@@ -217,18 +262,37 @@ body {
 
 <div id="hud">
   <div id="top-bar">
-    <div class="panel">
-      <div class="lbl">Score</div>
-      <div class="val" id="v-score">0</div>
+    <!-- Score -->
+    <div class="hud-tile" id="tile-score">
+      <span class="t-icon">🎯</span>
+      <div>
+        <div class="t-lbl">Score</div>
+        <div class="t-val" id="v-score">0</div>
+      </div>
     </div>
-    <div id="buildings-bar"></div>
-    <button id="sound-btn" onclick="SFX.toggle()">🔊</button>
-    <button id="pause-btn" onclick="G.togglePause()">⏸</button>
-    <div class="panel" style="text-align:right">
-      <div class="lbl">Wave</div>
-      <div class="val" id="v-wave">1</div>
+
+    <!-- City health bar -->
+    <div class="hud-tile" id="tile-city">
+      <div class="city-header">
+        <span class="city-lbl">🏙 City</span>
+        <span class="city-pct" id="city-pct">100%</span>
+      </div>
+      <div id="city-bar-wrap"><div id="city-bar" style="width:100%"></div></div>
+    </div>
+
+    <!-- Sound & Pause -->
+    <button class="hud-btn" id="sound-btn" onclick="SFX.toggle()" title="Sound">🔊</button>
+    <button class="hud-btn" id="pause-btn" onclick="G.togglePause()" title="Pause">⏸</button>
+
+    <!-- Wave -->
+    <div class="hud-tile" id="tile-wave">
+      <div class="t-lbl">Wave</div>
+      <div class="t-val" id="v-wave">1</div>
     </div>
   </div>
+
+  <!-- hidden, kept for JS compat -->
+  <div id="buildings-bar"></div>
 
   <div id="ammo-warn">No ammo!</div>
   <div id="wrong-type-warn">Wrong interceptor type!</div>
@@ -262,7 +326,8 @@ body {
 
 <div id="pause-overlay">
   <h2>PAUSED</h2>
-  <button class="rbtn" onclick="G.togglePause()">Resume</button>
+  <p>Press P or tap Resume</p>
+  <button class="rbtn" onclick="G.togglePause()">▶ Resume</button>
 </div>
 
 <div class="end-screen" id="game-over">
@@ -1079,6 +1144,16 @@ const G = {
   },
 
   _updateBldgBar(){
+    // City health bar
+    const total=this.buildings.length;
+    const hp=total===0?1:this.buildings.reduce((s,b)=>s+(b.dead?0:b.hp),0)/total;
+    const pct=Math.round(hp*100);
+    document.getElementById('city-bar').style.width=pct+'%';
+    document.getElementById('city-pct').textContent=pct+'%';
+    // Color shifts green→yellow→red
+    const col=hp>0.6?`linear-gradient(90deg,#22cc44,#44ff66)`:hp>0.3?`linear-gradient(90deg,#cc8800,#ffcc00)`:`linear-gradient(90deg,#cc2200,#ff4400)`;
+    document.getElementById('city-bar').style.background=col;
+    // Hidden dots (legacy)
     const bar=document.getElementById('buildings-bar');
     bar.innerHTML='';
     for(const b of this.buildings){
