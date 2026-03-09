@@ -576,6 +576,13 @@ const LB = {
   _token: null,
   _minScore: 0,   // lowest score currently on the board (0 = board not full yet)
   _lbCount: 0,    // how many entries are on the board
+  _queue: [],     // offline score queue
+
+  _loadQueue(){
+    try { this._queue = JSON.parse(localStorage.getItem('id_score_queue')||'[]'); }
+    catch(e){ this._queue = []; }
+  },
+  _saveQueue(){ localStorage.setItem('id_score_queue', JSON.stringify(this._queue)); },
 
   async fetchToken(){
     try {
@@ -600,6 +607,21 @@ const LB = {
     setTimeout(()=>document.getElementById('hs-name-input').focus(), 120);
   },
 
+  async _postScore(name, score, wave){
+    const res = await fetch(API_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({name, score, wave, token: this._token})
+    });
+    // Server-side rejection (bad input, cheating) — don't queue these
+    if(res.status===400 || res.status===403 || res.status===429){
+      const data = await res.json().catch(()=>({}));
+      throw Object.assign(new Error('rejected'), {serverError: data.error||'Rejected'});
+    }
+    if(!res.ok) throw new Error('network');
+    return res;
+  },
+
   async submitScore(){
     const name = document.getElementById('hs-name-input').value.trim().slice(0,16) || 'Anonymous';
     const {score, wave} = this._pending;
@@ -607,19 +629,48 @@ const LB = {
     document.getElementById('hs-status').textContent = 'Saving…';
     document.getElementById('hs-submit-btn').disabled = true;
     try {
-      const res = await fetch(API_URL, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({name, score, wave, token: this._token})
-      });
-      if(!res.ok) throw new Error();
-      // Refresh token for any subsequent submission in the same session
+      await this._postScore(name, score, wave);
       this.fetchToken();
       document.getElementById('hs-status').textContent = '✓ Saved!';
       setTimeout(()=>{ this.hide('highscore-modal'); this.show(); }, 800);
     } catch(e){
-      document.getElementById('hs-status').textContent = '⚠ Server unavailable — score not saved';
-      document.getElementById('hs-submit-btn').disabled = false;
+      if(e.serverError){
+        // Server explicitly rejected — show reason, don't queue
+        document.getElementById('hs-status').textContent = '⚠ ' + e.serverError;
+        document.getElementById('hs-submit-btn').disabled = false;
+      } else {
+        // Network failure — queue for later
+        this._queue.push({name, score, wave, ts: Date.now()});
+        this._saveQueue();
+        document.getElementById('hs-status').textContent = '📶 Offline — will sync when reconnected';
+        setTimeout(()=>{ this.hide('highscore-modal'); }, 1800);
+      }
+    }
+  },
+
+  async syncQueue(){
+    if(!this._queue.length || !navigator.onLine) return;
+    await this.fetchToken();
+    if(!this._token) return;
+    // Drop entries older than 24 hours
+    const cutoff = Date.now() - 86400000;
+    this._queue = this._queue.filter(e => e.ts > cutoff);
+    this._saveQueue();
+    for(const entry of [...this._queue]){
+      try {
+        await this._postScore(entry.name, entry.score, entry.wave);
+        this._queue = this._queue.filter(e => e.ts !== entry.ts);
+        this._saveQueue();
+        await this.fetchToken(); // fresh token for next entry
+      } catch(e){
+        if(e.serverError){
+          // Server rejected this entry — drop it silently
+          this._queue = this._queue.filter(e2 => e2.ts !== entry.ts);
+          this._saveQueue();
+        } else {
+          break; // still offline, stop trying
+        }
+      }
     }
   },
 
@@ -1842,12 +1893,22 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape'||e.key==='p'||e.key==='P') G.togglePause();
 });
 
+// ---- Service Worker ----
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+
 // ---- Boot ----
 resize();
 G.init();
+// Load offline queue and attempt to sync any pending scores
+LB._loadQueue();
 // Pre-fetch session token + leaderboard so gating is ready before first game ends
 LB.fetchToken();
 LB.show().then(()=>{ document.getElementById('leaderboard-modal').style.display='none'; });
+LB.syncQueue();
+// Sync whenever the browser comes back online
+window.addEventListener('online', ()=> LB.syncQueue());
 </script>
 </body>
 </html>
