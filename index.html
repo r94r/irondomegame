@@ -611,7 +611,6 @@ const LB = {
   skipSubmit(){ this.hide('highscore-modal'); },
 
   async show(){
-    if(G.state==='playing') G.togglePause();
     const el = document.getElementById('lb-list');
     el.innerHTML = '<div class="lb-loading">Loading…</div>';
     document.getElementById('lb-local-best').textContent = '';
@@ -639,7 +638,8 @@ const LB = {
 
   hide(id='leaderboard-modal'){
     document.getElementById(id).style.display='none';
-    if(id==='leaderboard-modal' && G.state==='paused') G.togglePause();
+    // Reset lastT so the game doesn't jump forward after overlay was open
+    G.lastT = performance.now();
   },
 };
 
@@ -1487,8 +1487,8 @@ const G = {
 
   dismissHowToPlay(){
     document.getElementById('how-to-play').style.display='none';
-    // Resume AudioContext on first interaction
     if(SFX._ctx && SFX._ctx.state==='suspended') SFX._ctx.resume();
+    this.lastT = performance.now(); // prevent dt spike
   },
 
   togglePause(){
@@ -1698,8 +1698,12 @@ const G = {
     requestAnimationFrame(t=>this._loop(t));
   },
 
+  _overlayOpen(){
+    return ['how-to-play','highscore-modal','leaderboard-modal']
+      .some(id=>{ const el=document.getElementById(id); return el&&el.style.display!=='none'; });
+  },
   _update(dt){
-    if(this.state==='paused') return;
+    if(this.state==='paused' || this._overlayOpen()) return;
     if(this.state==='banner'){
       this.bannerT-=dt;
       // Drive 3-2-1-GO countdown
