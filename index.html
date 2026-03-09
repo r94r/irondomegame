@@ -235,21 +235,26 @@ body {
 #htp-inner {
   text-align:center;
   color:#fff;
-  padding:28px 20px;
+  padding:16px 20px;
   max-width:340px;
   width:100%;
+  height:100%;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  box-sizing:border-box;
 }
 #htp-logo {
-  width: clamp(225px, 64%, 360px);
-  margin-bottom: 6px;
+  flex:1; min-height:0;
+  max-width:100%;
+  object-fit:contain;
+  margin-bottom:6px;
   filter: drop-shadow(0 0 20px #4aaeff55);
 }
 #htp-sub {
-  font-size:13px; color:#8ab; margin-bottom:24px;
+  font-size:13px; color:#8ab; margin-bottom:12px;
 }
 #htp-steps {
   display:flex; justify-content:center; gap:10px;
-  margin-bottom:28px;
+  margin-bottom:12px;
 }
 .htp-step {
   flex:1; display:flex; flex-direction:column; align-items:center; gap:10px;
@@ -269,8 +274,8 @@ body {
   background:rgba(255,255,255,.04);
   border:1px solid rgba(80,150,255,.2);
   border-radius:12px;
-  padding:12px 16px;
-  margin-bottom:20px;
+  padding:10px 16px;
+  margin-bottom:12px;
   width:100%;
   box-sizing:border-box;
 }
