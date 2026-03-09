@@ -57,7 +57,7 @@ body {
 }
 .panel .lbl { color:#4af; font-size:9px; text-transform:uppercase; letter-spacing:1px; }
 .panel .val { font-size:20px; font-weight:900; line-height:1.1; }
-#pause-btn {
+#pause-btn, #sound-btn {
   background:rgba(0,10,30,0.75);
   border:1px solid #1a6aaa;
   border-radius:8px;
@@ -71,7 +71,8 @@ body {
   transition:background .15s;
   align-self:flex-start;
 }
-#pause-btn:hover { background:rgba(0,40,90,.9); }
+#pause-btn:hover, #sound-btn:hover { background:rgba(0,40,90,.9); }
+#sound-btn.muted { border-color:#555; color:#666; }
 #pause-overlay {
   position:absolute; top:50%; left:50%;
   transform:translate(-50%,-50%);
@@ -221,6 +222,7 @@ body {
       <div class="val" id="v-score">0</div>
     </div>
     <div id="buildings-bar"></div>
+    <button id="sound-btn" onclick="SFX.toggle()">🔊</button>
     <button id="pause-btn" onclick="G.togglePause()">⏸</button>
     <div class="panel" style="text-align:right">
       <div class="lbl">Wave</div>
@@ -284,6 +286,13 @@ body {
 // =====================================================================
 const SFX = {
   _ctx: null,
+  muted: false,
+  toggle(){
+    this.muted = !this.muted;
+    const btn = document.getElementById('sound-btn');
+    btn.textContent = this.muted ? '🔇' : '🔊';
+    btn.classList.toggle('muted', this.muted);
+  },
   get ctx(){
     if(!this._ctx) this._ctx = new (window.AudioContext||window.webkitAudioContext)();
     return this._ctx;
@@ -305,7 +314,7 @@ const SFX = {
   },
 
   // ---- Rocket whoosh ----
-  whoosh(){
+  whoosh(){ if(this.muted) return;
     const c = this.ctx, now = c.currentTime;
     const noise = this._noise(0.45);
     const filt = c.createBiquadFilter();
@@ -321,7 +330,7 @@ const SFX = {
   },
 
   // ---- Small boom (interception) ----
-  boomSmall(){
+  boomSmall(){ if(this.muted) return;
     const c = this.ctx, now = c.currentTime;
     // Thump
     const osc = c.createOscillator();
@@ -345,7 +354,7 @@ const SFX = {
   },
 
   // ---- Big boom (missile hits ground) ----
-  boomBig(){
+  boomBig(){ if(this.muted) return;
     const c = this.ctx, now = c.currentTime;
     // Sub rumble
     const osc = c.createOscillator();
