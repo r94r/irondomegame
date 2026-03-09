@@ -537,10 +537,10 @@ body {
         <div class="htp-text"><strong>Release</strong> to fire the<br>interceptor</div>
       </div>
       <div class="htp-step">
-        <div class="htp-anim">
-          <span style="font-size:34px">1</span>
-          <span style="font-size:22px;margin:0 4px;opacity:.5">2</span>
-          <span style="font-size:22px;opacity:.5">3</span>
+        <div class="htp-anim" style="flex-direction:column;gap:3px;font-size:11px;line-height:1.5">
+          <span>🔴 Small → <strong style="color:#4aaeff">Iron Dome</strong></span>
+          <span>🟠 Medium → <strong style="color:#ffd84a">David's Sling</strong></span>
+          <span>🟣 Large → <strong style="color:#ff6aff">Arrow</strong></span>
         </div>
         <div class="htp-text">Pick the <strong>right interceptor</strong><br>for each missile size</div>
       </div>
@@ -573,11 +573,24 @@ const API_URL = 'api.php'; // same folder; change to full URL when on different 
 
 const LB = {
   _pending: null,
+  _token: null,
+  _minScore: 0,   // lowest score currently on the board (0 = board not full yet)
+  _lbCount: 0,    // how many entries are on the board
+
+  async fetchToken(){
+    try {
+      const res = await fetch(API_URL + '?token=1');
+      const data = await res.json();
+      this._token = data.token || null;
+    } catch(e){ this._token = null; }
+  },
 
   checkScore(score, wave){
     const local = parseInt(localStorage.getItem('id_hiscore')||'0');
     if(score > local) localStorage.setItem('id_hiscore', score);
     if(score <= 0) return;
+    // Only prompt if score would actually make the top 15
+    if(this._lbCount >= 15 && score <= this._minScore) return;
     this._pending = {score, wave};
     document.getElementById('hs-score-display').textContent = score.toLocaleString();
     document.getElementById('hs-name-input').value = localStorage.getItem('id_lastname')||'';
@@ -597,9 +610,11 @@ const LB = {
       const res = await fetch(API_URL, {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({name, score, wave})
+        body: JSON.stringify({name, score, wave, token: this._token})
       });
       if(!res.ok) throw new Error();
+      // Refresh token for any subsequent submission in the same session
+      this.fetchToken();
       document.getElementById('hs-status').textContent = '✓ Saved!';
       setTimeout(()=>{ this.hide('highscore-modal'); this.show(); }, 800);
     } catch(e){
@@ -619,6 +634,9 @@ const LB = {
       const res = await fetch(API_URL);
       if(!res.ok) throw new Error();
       const data = await res.json();
+      // Cache board stats for checkScore gating
+      this._lbCount = data.length;
+      this._minScore = data.length ? parseInt(data[data.length-1].score) : 0;
       if(!data.length){ el.innerHTML='<div class="lb-empty">No scores yet — be the first!</div>'; return; }
       const medals=['🥇','🥈','🥉'];
       const me = localStorage.getItem('id_lastname')||'';
@@ -818,13 +836,20 @@ const MSL = {
   medium:{ col:'#ff8844', len:32, wid:9,  spd:72,  dmg:.65, pts:25 },
   large: { col:'#ff44ff', len:50, wid:14, spd:52,  dmg:1.0, pts:50 },
 };
-const WAVES = [
-  { s:5, m:0, l:0, iv:2800, bonusDavid:0, bonusArrow:0 },
-  { s:5, m:3, l:0, iv:2400, bonusDavid:3, bonusArrow:0 },
-  { s:5, m:3, l:2, iv:2000, bonusDavid:3, bonusArrow:2 },
-  { s:5, m:4, l:3, iv:1700, bonusDavid:3, bonusArrow:2 },
-  { s:5, m:5, l:4, iv:1400, bonusDavid:4, bonusArrow:3 },
-];
+// Waves are generated procedurally — no end
+function makeWave(n) {
+  // n is 0-based wave index
+  const hard = Math.min(n / 4, 1);           // 0→1 over first 4 waves
+  const surge = Math.max(0, (n - 4) / 6);    // extra scaling after wave 4
+  const s  = 4 + Math.floor(n * 0.8 + surge * 4);
+  const m  = n < 1 ? 0 : 2 + Math.floor(n * 0.7 + surge * 3);
+  const l  = n < 2 ? 0 : 1 + Math.floor((n - 2) * 0.5 + surge * 2);
+  const iv = Math.max(700, 2800 - n * 160);  // spawn interval ms, min 0.7s
+  // Ammo bonus every wave after the first (generous to keep it playable)
+  const bonusDavid = n === 0 ? 0 : 2 + Math.floor(surge);
+  const bonusArrow = n < 2  ? 0 : 1 + Math.floor(surge * 0.5);
+  return { s, m, l, iv, bonusDavid, bonusArrow };
+}
 
 // ====================================================================
 //  Particle
@@ -1508,8 +1533,7 @@ const G = {
   },
 
   _startWave(){
-    if(this.wave>=WAVES.length){ this._win(); return; }
-    const w=WAVES[this.wave];
+    const w=makeWave(this.wave);
     if(this.wave>0){
       this.ammo.david+=w.bonusDavid;
       this.ammo.arrow+=w.bonusArrow;
@@ -1748,8 +1772,7 @@ const G = {
     if(this.missileQueue.length===0 && this.missiles.length===0 && this.state==='playing' && !this._waveDone){
       this._waveDone=true;
       setTimeout(()=>{
-        if(this.wave<WAVES.length-1) this._showBreak();
-        else this._win();
+        this._showBreak();
       }, 600);
     }
   },
@@ -1822,6 +1845,9 @@ document.addEventListener('keydown',e=>{
 // ---- Boot ----
 resize();
 G.init();
+// Pre-fetch session token + leaderboard so gating is ready before first game ends
+LB.fetchToken();
+LB.show().then(()=>{ document.getElementById('leaderboard-modal').style.display='none'; });
 </script>
 </body>
 </html>

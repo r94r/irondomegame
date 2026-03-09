@@ -5,7 +5,7 @@
 //
 //  Setup:
 //   1. Create a MySQL database + user in cPanel
-//   2. Fill in the 4 config values below
+//   2. Fill in the 5 config values below
 //   3. Visit https://yourdomain.com/irondome/api.php?setup=1 once
 //      to create the scores table (then remove ?setup=1 from URL)
 // =====================================================================
@@ -14,6 +14,7 @@ define('DB_HOST', 'localhost');
 define('DB_NAME', 'YOUR_DB_NAME');    // e.g. r94r_irondome
 define('DB_USER', 'YOUR_DB_USER');    // e.g. r94r_ironuser
 define('DB_PASS', 'YOUR_DB_PASS');    // your db password
+define('TOKEN_SECRET', 'CHANGE_THIS_TO_A_RANDOM_32_CHAR_STRING'); // openssl rand -hex 16
 
 // ---- CORS – allow requests from GitHub Pages + localhost ----
 $allowed = [
@@ -33,6 +34,32 @@ header('Access-Control-Allow-Headers: Content-Type');
 header('Content-Type: application/json');
 
 if($_SERVER['REQUEST_METHOD'] === 'OPTIONS'){ http_response_code(204); exit; }
+
+// ---- Session token helpers ----
+function makeToken(): string {
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+    $ts = time();
+    $hmac = hash_hmac('sha256', $ts . '|' . $ip, TOKEN_SECRET);
+    return $ts . '.' . $hmac;
+}
+
+function validateToken(string $token): bool {
+    $parts = explode('.', $token, 2);
+    if(count($parts) !== 2) return false;
+    [$ts, $hmac] = $parts;
+    if(!ctype_digit($ts)) return false;
+    // Expire after 4 hours (generous to cover long sessions)
+    if(time() - (int)$ts > 14400) return false;
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+    $expected = hash_hmac('sha256', $ts . '|' . $ip, TOKEN_SECRET);
+    return hash_equals($expected, $hmac);
+}
+
+// ---- GET ?token=1 → issue a session token (no DB needed) ----
+if(isset($_GET['token'])){
+    echo json_encode(['token' => makeToken()]);
+    exit;
+}
 
 // ---- DB connection ----
 try {
@@ -73,18 +100,39 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     $name  = trim(strip_tags($body['name']  ?? ''));
     $score = (int)($body['score'] ?? 0);
     $wave  = (int)($body['wave']  ?? 1);
+    $token = trim($body['token']  ?? '');
 
-    if(!$name || strlen($name) > 32 || $score <= 0){
+    // 1. Validate session token
+    if(!$token || !validateToken($token)){
+        http_response_code(403);
+        echo json_encode(['error' => 'Invalid or expired session']);
+        exit;
+    }
+
+    // 2. Basic input validation
+    if(!$name || strlen($name) > 32 || $score <= 0 || $wave < 1){
         http_response_code(400);
         echo json_encode(['error' => 'Invalid input']);
         exit;
     }
 
-    // Rate limit: max 5 entries per IP per hour
-    $ip   = $_SERVER['REMOTE_ADDR'] ?? '';
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM scores WHERE created > NOW() - INTERVAL 1 HOUR");
-    // (simple global limit – good enough for a game)
+    // 3. Plausibility cap: max ~5000 pts per wave reached (very generous)
+    if($score > $wave * 5000){
+        http_response_code(400);
+        echo json_encode(['error' => 'Score not plausible']);
+        exit;
+    }
 
+    // 4. Rate limit: max 60 entries per hour globally
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM scores WHERE created > NOW() - INTERVAL 1 HOUR");
+    $stmt->execute();
+    if((int)$stmt->fetchColumn() >= 60){
+        http_response_code(429);
+        echo json_encode(['error' => 'Rate limit exceeded, try again later']);
+        exit;
+    }
+
+    // 5. Insert
     $stmt = $pdo->prepare("INSERT INTO scores (name, score, wave) VALUES (?, ?, ?)");
     $stmt->execute([$name, $score, $wave]);
     echo json_encode(['ok' => true, 'id' => $pdo->lastInsertId()]);
