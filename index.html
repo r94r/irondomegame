@@ -1665,6 +1665,7 @@ const G = {
     ['game-over','game-win','alert-banner','highscore-modal','leaderboard-modal']
       .forEach(id=>{ document.getElementById(id).style.display='none'; });
     this.missiles=[]; this.interceptors=[]; this.explosions=[];
+    this.buildings=[];  // clear before _buildCity so old damage is not copied
     this.score=0; this.wave=0; this.curType='irondome';
     this.ammo={irondome:Infinity, david:8, arrow:4};
     this.state='banner';
