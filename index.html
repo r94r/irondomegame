@@ -235,13 +235,18 @@ body {
 #htp-inner {
   text-align:center;
   color:#fff;
-  padding:28px 20px;
+  padding:16px 20px;
   max-width:340px;
   width:100%;
+  max-height:100%;
+  overflow-y:auto;
+  box-sizing:border-box;
 }
 #htp-logo {
   width: clamp(300px, 85%, 480px);
-  margin-bottom: 6px;
+  max-height:38vh;
+  object-fit:contain;
+  margin-bottom:6px;
   filter: drop-shadow(0 0 20px #4aaeff55);
 }
 #htp-sub {
