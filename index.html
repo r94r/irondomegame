@@ -18,8 +18,17 @@ body {
   touch-action:none;
   user-select:none;
 }
+#game-wrap {
+  position:relative;
+  width:100%;
+  max-width:560px;
+  height:100vh;
+  overflow:hidden;
+}
 #gameCanvas {
   display:block;
+  width:100%;
+  height:100%;
   cursor:crosshair;
   touch-action:none;
 }
@@ -202,6 +211,7 @@ body {
 </style>
 </head>
 <body>
+<div id="game-wrap">
 <canvas id="gameCanvas"></canvas>
 
 <div id="hud">
@@ -265,6 +275,7 @@ body {
   <p class="sc">Score: <strong id="w-score">0</strong></p>
   <button class="rbtn" onclick="G.restart()">Play Again</button>
 </div>
+</div><!-- /game-wrap -->
 
 <script>
 'use strict';
@@ -406,10 +417,9 @@ const ctx  = cvs.getContext('2d');
 
 // ---- resize --------------------------------------------------------
 function resize() {
-  const W = Math.min(window.innerWidth, 560);
-  const H = window.innerHeight;
-  cvs.width  = W;
-  cvs.height = H;
+  const wrap = document.getElementById('game-wrap');
+  cvs.width  = wrap.clientWidth;
+  cvs.height = wrap.clientHeight;
   if (G) G.onResize();
 }
 window.addEventListener('resize', resize);
@@ -1303,10 +1313,10 @@ const G = {
       const step = this.bannerT>3.2 ? -1 : this.bannerT>2.2 ? 3 : this.bannerT>1.2 ? 2 : this.bannerT>0.2 ? 1 : 0;
       if(step !== this._countStep){
         this._countStep = step;
-        if(step===3){ this._showBanner('3','Wave '+(this.wave+1),'#ffdd00','#ffaa00',false); SFX.countBeep(3); }
-        else if(step===2){ this._showBanner('2','Wave '+(this.wave+1),'#ffdd00','#ffaa00',false); SFX.countBeep(2); }
-        else if(step===1){ this._showBanner('1','Wave '+(this.wave+1),'#ffdd00','#ffaa00',false); SFX.countBeep(1); }
-        else if(step===0){ this._showBanner('GO!','Wave '+(this.wave+1),'#44ff44','#aaffaa',false); SFX.countBeep(0); }
+        if(step===3){ this._showBanner('3','Wave '+(this.wave+1),'#ffdd00','#ffaa00',false); }
+        else if(step===2){ this._showBanner('2','Wave '+(this.wave+1),'#ffdd00','#ffaa00',false); }
+        else if(step===1){ this._showBanner('1','Wave '+(this.wave+1),'#ffdd00','#ffaa00',false); }
+        else if(step===0){ this._showBanner('GO!','Wave '+(this.wave+1),'#44ff44','#aaffaa',false); }
       }
       if(this.bannerT<=0){ this.state='playing'; this._hideBanner(); }
       return;
