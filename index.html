@@ -146,6 +146,88 @@ body {
 .bh.half { background:#aa2; border-color:#882; }
 .bh.dead { background:#422; border-color:#311; }
 
+/* ---- How To Play overlay ---- */
+#how-to-play {
+  position:absolute; inset:0;
+  background:rgba(2,6,20,.92);
+  z-index:40;
+  display:flex; align-items:center; justify-content:center;
+  pointer-events:all;
+  backdrop-filter:blur(4px);
+}
+#htp-inner {
+  text-align:center;
+  color:#fff;
+  padding:28px 20px;
+  max-width:340px;
+  width:100%;
+}
+#htp-title {
+  font-size:clamp(26px,7vw,42px);
+  font-weight:900;
+  letter-spacing:5px;
+  color:#4aaeff;
+  text-shadow:0 0 30px #4aaeff88;
+  margin-bottom:4px;
+}
+#htp-sub {
+  font-size:13px; color:#8ab; margin-bottom:24px;
+}
+#htp-steps {
+  display:flex; justify-content:center; gap:10px;
+  margin-bottom:28px;
+}
+.htp-step {
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:10px;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(80,150,255,.2);
+  border-radius:12px;
+  padding:14px 8px 12px;
+}
+.htp-anim {
+  height:52px; display:flex; align-items:center; justify-content:center;
+  position:relative;
+}
+.htp-text { font-size:11px; color:#ccd; line-height:1.5; }
+.htp-text strong { color:#fff; }
+
+/* Animated slingshot in step 1 */
+.htp-rocket {
+  width:18px; height:7px;
+  background:linear-gradient(90deg,#222,#4aaeff,#111);
+  border-radius:50%;
+  position:absolute;
+  animation:htp-pull 1.6s ease-in-out infinite;
+  transform-origin:center;
+}
+@keyframes htp-pull {
+  0%,100% { transform:translate(0px, 0px); opacity:1; }
+  40%      { transform:translate(-14px, 12px); opacity:1; }
+  55%      { transform:translate(-14px, 12px); opacity:1; }
+  75%      { transform:translate(30px,-30px); opacity:0; }
+  76%      { transform:translate(0px,0px); opacity:0; }
+  90%      { opacity:1; }
+}
+.htp-band {
+  position:absolute;
+  width:2px; background:rgba(180,120,40,.7);
+  border-radius:2px;
+  transform-origin:bottom center;
+  animation:htp-band 1.6s ease-in-out infinite;
+}
+.htp-band:nth-child(2){ height:22px; left:calc(50% - 5px); bottom:50%; transform:rotate(-20deg); }
+.htp-band:nth-child(3){ height:22px; left:calc(50% + 3px); bottom:50%; transform:rotate(20deg); }
+@keyframes htp-band {
+  0%,100% { transform:rotate(-20deg) scaleY(1); }
+  40%,55% { transform:rotate(-35deg) scaleY(1.3); }
+  75%     { transform:rotate(-20deg) scaleY(1); }
+}
+.htp-arc {
+  position:absolute; top:2px; left:50%; transform:translateX(-50%);
+  width:36px; height:22px;
+  border:1.5px dashed rgba(100,200,255,.35);
+  border-bottom:none; border-radius:18px 18px 0 0;
+}
 /* ---- Interceptor Buttons ---- */
 #launcher-panel {
   position:absolute;
@@ -328,6 +410,39 @@ body {
   <h2>PAUSED</h2>
   <p>Press P or tap Resume</p>
   <button class="rbtn" onclick="G.togglePause()">▶ Resume</button>
+</div>
+
+<div id="how-to-play">
+  <div id="htp-inner">
+    <div id="htp-title">IRON DOME</div>
+    <div id="htp-sub">Defend the city from incoming missiles</div>
+    <div id="htp-steps">
+      <div class="htp-step">
+        <div class="htp-anim" id="anim-drag">
+          <div class="htp-rocket" id="htp-r"></div>
+          <div class="htp-band" id="htp-b1"></div>
+          <div class="htp-band" id="htp-b2"></div>
+          <div class="htp-arc"></div>
+        </div>
+        <div class="htp-text"><strong>Hold &amp; drag</strong> to pull back<br>the launcher</div>
+      </div>
+      <div class="htp-step">
+        <div class="htp-anim">
+          <span style="font-size:38px">🚀</span>
+        </div>
+        <div class="htp-text"><strong>Release</strong> to fire the<br>interceptor</div>
+      </div>
+      <div class="htp-step">
+        <div class="htp-anim">
+          <span style="font-size:34px">1</span>
+          <span style="font-size:22px;margin:0 4px;opacity:.5">2</span>
+          <span style="font-size:22px;opacity:.5">3</span>
+        </div>
+        <div class="htp-text">Pick the <strong>right interceptor</strong><br>for each missile size</div>
+      </div>
+    </div>
+    <button class="rbtn" id="htp-btn" onclick="G.dismissHowToPlay()">Let's Go! 🚀</button>
+  </div>
 </div>
 
 <div class="end-screen" id="game-over">
@@ -1184,6 +1299,12 @@ const G = {
     document.getElementById('btn-'+t).classList.add('sel');
   },
 
+  dismissHowToPlay(){
+    document.getElementById('how-to-play').style.display='none';
+    // Resume AudioContext on first interaction
+    if(SFX._ctx && SFX._ctx.state==='suspended') SFX._ctx.resume();
+  },
+
   togglePause(){
     if(this.state==='paused'){
       this.state=this._prepauseState;
@@ -1260,6 +1381,7 @@ const G = {
 
     // Slingshot: touch anywhere starts a pull from the launcher pivot
     const DOWN=e=>{
+      if(document.getElementById('how-to-play').style.display!=='none') return;
       // Resume AudioContext on first user interaction (browser policy)
       if(SFX._ctx && SFX._ctx.state==='suspended') SFX._ctx.resume();
       if(this.state!=='playing') return;
