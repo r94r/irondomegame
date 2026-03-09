@@ -13,6 +13,7 @@ body {
   align-items:center;
   justify-content:center;
   height:100vh;
+  height:100dvh;
   overflow:hidden;
   font-family:'Arial',sans-serif;
   touch-action:none;
@@ -23,6 +24,7 @@ body {
   width:100%;
   max-width:560px;
   height:100vh;
+  height:100dvh;
   overflow:hidden;
 }
 #gameCanvas {
@@ -793,6 +795,8 @@ function resize() {
   cvs.height = wrap.clientHeight;
   if (G) G.onResize();
 }
+// Re-run resize when mobile browser chrome appears/disappears
+window.visualViewport && window.visualViewport.addEventListener('resize', resize);
 window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', () => setTimeout(resize, 200));
 
