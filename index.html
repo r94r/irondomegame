@@ -700,7 +700,7 @@ const STRINGS = {
     'go-title':'העיר נהרסה','go-sub':'כל הבניינים נהרסו.',
     'score-prefix':'ניקוד: ','play-again':'שחק שוב',
     'gw-title':'הגנה הצליחה','gw-sub':'שרדת את כל הגלים!',
-    'red-alert':'🚨 אזעקה אדומה 🚨','wave-prefix':'גל',
+    'red-alert':'🚨 צבע אדום 🚨','wave-prefix':'גל',
     'wave-clear':'גל הושלם','preparing-next':'מכין גל הבא...',
     'go':'קדימה!',
     'saving':'שומר...','saved':'נשמר! ✓',
@@ -752,6 +752,9 @@ function applyLang(lang){
   s('go-score-lbl','score-prefix'); s('go-play-again','play-again');
   s('gw-title','gw-title'); s('gw-sub','gw-sub');
   s('gw-score-lbl','score-prefix'); s('gw-play-again','play-again');
+  // Logo
+  const logo = document.getElementById('htp-logo');
+  if(logo) logo.src = lang==='he' ? 'kipod_he.png' : 'kipod_en.png';
   // Lang buttons
   const enB=document.getElementById('lang-en'), heB=document.getElementById('lang-he');
   if(enB){ enB.classList.toggle('sel', lang==='en'); }
