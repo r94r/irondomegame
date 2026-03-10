@@ -268,33 +268,33 @@ body {
   position:absolute; inset:0;
   background:rgba(2,6,20,.92);
   z-index:40;
-  display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+  display:flex; flex-direction:column; align-items:center;
   pointer-events:all;
   backdrop-filter:blur(4px);
-  overflow-y:auto;
+  overflow:hidden;
 }
 #htp-inner {
-  text-align:center;
-  color:#fff;
-  padding:8px 16px 80px;
-  max-width:340px;
-  width:100%;
+  flex:1; min-height:0;
+  display:flex; flex-direction:column; align-items:center;
+  text-align:center; color:#fff;
+  padding:8px 16px 0;
+  max-width:340px; width:100%;
   box-sizing:border-box;
-  flex-shrink:0;
+  overflow-y:auto; /* fallback for very small screens */
 }
 #htp-logo {
-  width: clamp(100px, 42%, 180px);
-  max-height:20vh;
+  flex:1; min-height:0;
+  width: clamp(80px, 55%, 200px);
   object-fit:contain;
   margin-bottom:4px;
   filter: drop-shadow(0 0 20px #4aaeff55);
 }
 #htp-sub {
-  font-size:12px; color:#8ab; margin-bottom:12px;
+  font-size:12px; color:#8ab; margin-bottom:12px; flex-shrink:0;
 }
 #htp-steps {
   display:flex; justify-content:center; gap:8px;
-  margin-bottom:12px;
+  margin-bottom:12px; flex-shrink:0; width:100%;
 }
 .htp-step {
   flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;
@@ -312,9 +312,10 @@ body {
 
 #htp-btn { font-size:17px; padding:11px 32px; }
 #htp-btn-wrap {
-  position:absolute; bottom:0; left:0; right:0;
-  padding:8px 20px 12px;
-  background:linear-gradient(transparent, rgba(2,6,20,.97) 35%);
+  flex-shrink:0;
+  width:100%; max-width:340px;
+  padding:16px 20px 24px;
+  background:linear-gradient(transparent, rgba(2,6,20,.97) 30%);
   display:flex; flex-direction:column; align-items:center;
   pointer-events:all;
 }
@@ -327,6 +328,7 @@ body {
   margin-bottom:10px;
   width:100%;
   box-sizing:border-box;
+  flex-shrink:0;
 }
 #htp-guide-title {
   font-size:10px; color:#8ab; text-transform:uppercase;
