@@ -244,32 +244,24 @@ body {
 #lb-local-best { margin-top:10px; font-size:11px; color:#557; }
 .lb-loading { color:#446; font-size:13px; padding:16px 0; animation:pulse .8s ease-in-out infinite alternate; }
 
-/* ---- Install Banner ---- */
-#install-banner {
-  position:absolute; top:12px; left:50%; transform:translateX(-50%);
-  z-index:50; display:flex; align-items:center; gap:8px;
-  background:rgba(10,20,40,.95); border:1px solid rgba(74,174,255,.35);
-  border-radius:12px; padding:10px 14px;
-  box-shadow:0 4px 20px rgba(0,0,0,.5);
-  font-size:12px; color:#ccd; max-width:320px; width:calc(100% - 32px);
-  animation: banner-in .3s ease;
+/* ---- Install inline button ---- */
+#install-inline-btn {
+  background:none; border:1px solid rgba(74,174,255,.3); border-radius:20px;
+  color:#4aaeff; font-size:11px; padding:4px 12px; cursor:pointer;
+  opacity:.75; transition:opacity .2s;
 }
-@keyframes banner-in {
-  from { opacity:0; transform:translateX(-50%) translateY(-10px); }
-  to   { opacity:1; transform:translateX(-50%) translateY(0); }
+#install-inline-btn:hover { opacity:1; }
+#install-ios-tip {
+  position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%);
+  background:rgba(10,20,40,.97); border:1px solid rgba(74,174,255,.35);
+  border-radius:10px; padding:8px 12px; font-size:11px; color:#ccd;
+  white-space:nowrap; pointer-events:none;
+  box-shadow:0 4px 16px rgba(0,0,0,.5);
 }
-#install-icon { font-size:20px; flex-shrink:0; }
-#install-text { flex:1; line-height:1.35; }
-#install-btn {
-  flex-shrink:0; background:#4aaeff; color:#000; border:none;
-  border-radius:8px; padding:5px 10px; font-size:11px; font-weight:bold;
-  cursor:pointer; white-space:nowrap;
+#install-ios-tip::after {
+  content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%);
+  border:6px solid transparent; border-top-color:rgba(74,174,255,.35);
 }
-#install-dismiss {
-  flex-shrink:0; background:none; border:none; color:#445;
-  font-size:14px; cursor:pointer; padding:0 2px; line-height:1;
-}
-#install-dismiss:hover { color:#aac; }
 
 /* ---- How To Play overlay ---- */
 #how-to-play {
@@ -691,13 +683,6 @@ body {
   </div>
 </div>
 
-<div id="install-banner" style="display:none">
-  <span id="install-icon">📲</span>
-  <span id="install-text"></span>
-  <button id="install-btn" style="display:none"></button>
-  <button id="install-dismiss" onclick="InstallPrompt.dismiss()">✕</button>
-</div>
-
 <div id="how-to-play">
   <div id="htp-inner">
     <img src="kipod_en.png" alt="Kipod Barzel" id="htp-logo">
@@ -751,6 +736,10 @@ body {
   <div id="htp-btn-wrap">
     <button class="rbtn" id="htp-btn" onclick="G.dismissHowToPlay()">Let's Go! 🚀</button>
     <p style="margin-top:8px;font-size:10px;color:#445;text-align:center">Created by Raphael Reinig</p>
+    <div id="install-row" style="display:none;position:relative;margin-top:6px">
+      <button id="install-inline-btn" onclick="InstallPrompt.trigger()"></button>
+      <div id="install-ios-tip" style="display:none"></div>
+    </div>
   </div>
 </div>
 
@@ -2275,59 +2264,57 @@ const InstallPrompt = {
   _deferred: null,
   _isIOS: /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream,
   _isStandalone: window.matchMedia('(display-mode: standalone)').matches || navigator.standalone,
+  _platform: null,
 
   init(){
-    if(this._isStandalone) return;           // already installed
-    if(localStorage.getItem('install-dismissed')) return; // user dismissed before
-
+    if(this._isStandalone) return;
+    if(localStorage.getItem('install-dismissed')) return;
     if(this._isIOS){
-      // iOS: show after short delay (no beforeinstallprompt on Safari)
-      setTimeout(()=> this._show('ios'), 1200);
+      this._platform = 'ios';
+      this._show();
     } else {
-      // Android/Chrome: wait for browser install event
       window.addEventListener('beforeinstallprompt', e => {
         e.preventDefault();
         this._deferred = e;
-        setTimeout(()=> this._show('android'), 1200);
+        this._platform = 'android';
+        this._show();
       });
     }
   },
 
-  _show(platform){
-    const banner = document.getElementById('install-banner');
-    const text   = document.getElementById('install-text');
-    const btn    = document.getElementById('install-btn');
-    const key = platform === 'ios' ? 'install-text-ios' : 'install-text-android';
-    text.innerHTML = T(key);
-    if(platform === 'android'){
-      btn.textContent = T('install-btn');
-      btn.style.display = 'block';
-      btn.onclick = () => this._install();
-    }
-    banner.style.display = 'flex';
+  _show(){
+    const btn = document.getElementById('install-inline-btn');
+    btn.textContent = '📲 ' + T('install-btn');
+    document.getElementById('install-row').style.display = 'block';
   },
 
   applyLang(){
-    const banner = document.getElementById('install-banner');
-    if(banner.style.display === 'none') return;
-    const text = document.getElementById('install-text');
-    const btn  = document.getElementById('install-btn');
-    const platform = this._deferred ? 'android' : 'ios';
-    text.innerHTML = T(platform === 'ios' ? 'install-text-ios' : 'install-text-android');
-    if(btn.style.display !== 'none') btn.textContent = T('install-btn');
+    const row = document.getElementById('install-row');
+    if(row.style.display === 'none') return;
+    document.getElementById('install-inline-btn').textContent = '📲 ' + T('install-btn');
+    const tip = document.getElementById('install-ios-tip');
+    if(tip.style.display !== 'none') tip.innerHTML = T('install-text-ios');
   },
 
-  async _install(){
-    if(!this._deferred) return;
-    this._deferred.prompt();
-    const { outcome } = await this._deferred.userChoice;
-    this._deferred = null;
-    if(outcome === 'accepted') this.dismiss();
-  },
-
-  dismiss(){
-    document.getElementById('install-banner').style.display = 'none';
-    localStorage.setItem('install-dismissed', '1');
+  async trigger(){
+    if(this._platform === 'android' && this._deferred){
+      this._deferred.prompt();
+      const { outcome } = await this._deferred.userChoice;
+      this._deferred = null;
+      if(outcome === 'accepted'){
+        document.getElementById('install-row').style.display = 'none';
+        localStorage.setItem('install-dismissed', '1');
+      }
+    } else if(this._platform === 'ios'){
+      const tip = document.getElementById('install-ios-tip');
+      if(tip.style.display === 'none'){
+        tip.innerHTML = T('install-text-ios');
+        tip.style.display = 'block';
+        setTimeout(()=> tip.style.display = 'none', 4000);
+      } else {
+        tip.style.display = 'none';
+      }
+    }
   },
 };
 
