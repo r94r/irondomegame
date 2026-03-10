@@ -7,7 +7,7 @@
 //   1. Create a MySQL database + user in cPanel
 //   2. Fill in the 5 config values below
 //   3. Visit https://yourdomain.com/irondome/api.php?setup=1 once
-//      to create the scores table (then remove ?setup=1 from URL)
+//      to create the scores + games tables (then remove ?setup=1)
 // =====================================================================
 
 require __DIR__ . '/config.php'; // DB_HOST, DB_NAME, DB_USER, DB_PASS, TOKEN_SECRET
@@ -60,7 +60,7 @@ if(isset($_GET['token'])){
 // ---- DB connection ----
 try {
     $pdo = new PDO("mysql:host=".DB_HOST.";dbname=".DB_NAME.";charset=utf8mb4", DB_USER, DB_PASS, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
 } catch(Exception $e){
@@ -79,7 +79,15 @@ if(isset($_GET['setup'])){
         created   DATETIME DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_score (score DESC)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-    echo json_encode(['ok' => true, 'message' => 'Table ready. Remove ?setup=1 from the URL now.']);
+    $pdo->exec("CREATE TABLE IF NOT EXISTS games (
+        id        INT AUTO_INCREMENT PRIMARY KEY,
+        score     INT NOT NULL DEFAULT 0,
+        wave      TINYINT NOT NULL DEFAULT 1,
+        named     TINYINT(1) NOT NULL DEFAULT 0,
+        created   DATETIME DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_created (created)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    echo json_encode(['ok' => true, 'message' => 'Tables ready. Remove ?setup=1 from the URL now.']);
     exit;
 }
 
@@ -90,13 +98,31 @@ if($_SERVER['REQUEST_METHOD'] === 'GET'){
     exit;
 }
 
-// ---- POST /api.php  → submit score ----
 if($_SERVER['REQUEST_METHOD'] === 'POST'){
     $body = json_decode(file_get_contents('php://input'), true);
-    $name  = trim(strip_tags($body['name']  ?? ''));
-    $score = (int)($body['score'] ?? 0);
-    $wave  = (int)($body['wave']  ?? 1);
-    $token = trim($body['token']  ?? '');
+
+    // ---- POST ?game=1 → track any game completion (named or anonymous) ----
+    if(isset($_GET['game'])){
+        $token = trim($body['token'] ?? '');
+        if(!$token || !validateToken($token)){
+            http_response_code(403);
+            echo json_encode(['error' => 'Invalid or expired session']);
+            exit;
+        }
+        $score = max(0, (int)($body['score'] ?? 0));
+        $wave  = max(1, (int)($body['wave']  ?? 1));
+        $stmt  = $pdo->prepare("INSERT INTO games (score, wave) VALUES (?, ?)");
+        $stmt->execute([$score, $wave]);
+        echo json_encode(['ok' => true, 'game_id' => (int)$pdo->lastInsertId()]);
+        exit;
+    }
+
+    // ---- POST /api.php  → submit named score to leaderboard ----
+    $name    = trim(strip_tags($body['name']    ?? ''));
+    $score   = (int)($body['score']   ?? 0);
+    $wave    = (int)($body['wave']    ?? 1);
+    $token   = trim($body['token']    ?? '');
+    $game_id = (int)($body['game_id'] ?? 0);
 
     // 1. Validate session token
     if(!$token || !validateToken($token)){
@@ -128,9 +154,16 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
         exit;
     }
 
-    // 5. Insert
+    // 5. Insert score
     $stmt = $pdo->prepare("INSERT INTO scores (name, score, wave) VALUES (?, ?, ?)");
     $stmt->execute([$name, $score, $wave]);
+
+    // 6. Mark the game row as named (if client sent a game_id)
+    if($game_id > 0){
+        $upd = $pdo->prepare("UPDATE games SET named=1 WHERE id=?");
+        $upd->execute([$game_id]);
+    }
+
     echo json_encode(['ok' => true, 'id' => $pdo->lastInsertId()]);
     exit;
 }

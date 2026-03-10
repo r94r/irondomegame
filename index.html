@@ -860,6 +860,7 @@ function applyLang(lang){
 const LB = {
   _pending: null,
   _token: null,
+  _gameId: null,  // games table row id for the current round
   _minScore: 0,   // lowest score currently on the board (0 = board not full yet)
   _lbCount: 0,    // how many entries are on the board
   _queue: [],     // offline score queue
@@ -876,6 +877,16 @@ const LB = {
       const data = await res.json();
       this._token = data.token || null;
     } catch(e){ this._token = null; }
+  },
+
+  trackGame(score, wave){
+    this._gameId = null;
+    if(!this._token) return;
+    fetch(API_URL + '?game=1', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({score, wave, token: this._token})
+    }).then(r=>r.ok?r.json():null).then(d=>{ if(d&&d.game_id) this._gameId=d.game_id; }).catch(()=>{});
   },
 
   checkScore(score, wave){
@@ -897,7 +908,7 @@ const LB = {
     const res = await fetch(API_URL, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({name, score, wave, token: this._token})
+      body: JSON.stringify({name, score, wave, token: this._token, game_id: this._gameId})
     });
     // Server-side rejection (bad input, cheating) — don't queue these
     if(res.status===400 || res.status===403 || res.status===429){
@@ -1917,12 +1928,14 @@ const G = {
     this.state='win'; this._hideBanner();
     document.getElementById('w-score').textContent=this.score;
     document.getElementById('game-win').style.display='block';
+    LB.trackGame(this.score, this.wave+1);
     this._checkScoreTO=setTimeout(()=>LB.checkScore(this.score, this.wave+1), 600);
   },
   _lose(){
     this.state='gameover'; this._hideBanner();
     document.getElementById('e-score').textContent=this.score;
     document.getElementById('game-over').style.display='block';
+    LB.trackGame(this.score, this.wave+1);
     this._checkScoreTO=setTimeout(()=>LB.checkScore(this.score, this.wave+1), 600);
   },
 
