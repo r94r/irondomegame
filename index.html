@@ -6,6 +6,13 @@
 <title>Kipod Barzel</title>
 <meta name="description" content="Defend your city. Have fun in the shelter.">
 <link rel="icon" type="image/png" href="kipod_en.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0e1a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kipod Barzel">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="kipod_en.png">
 <!-- Open Graph / social preview -->
 <meta property="og:title" content="Kipod Barzel – Iron Hedgehog">
 <meta property="og:description" content="Defend your city. Have fun in the shelter.">
@@ -884,8 +891,8 @@ const LB = {
     try {
       const res = await fetch(API_URL + '?token=1');
       const data = await res.json();
-      this._token = data.token || null;
-    } catch(e){ this._token = null; }
+      if(data.token) this._token = data.token; // keep old token on failure
+    } catch(e){ /* offline — keep existing token, it's valid for 4 hours */ }
   },
 
   startGame(){

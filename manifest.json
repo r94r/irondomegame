@@ -1,0 +1,13 @@
+{
+  "name": "Kipod Barzel",
+  "short_name": "Kipod Barzel",
+  "description": "Defend your city. Have fun in the shelter.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0a0e1a",
+  "theme_color": "#0a0e1a",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "kipod_en.png", "sizes": "693x693", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

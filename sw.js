@@ -2,7 +2,7 @@
 // Caches index.html for offline play; API calls always go to the network.
 
 const CACHE = 'irondome-v1';
-const ASSETS = ['./'];
+const ASSETS = ['./', './manifest.json'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
