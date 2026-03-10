@@ -244,6 +244,33 @@ body {
 #lb-local-best { margin-top:10px; font-size:11px; color:#557; }
 .lb-loading { color:#446; font-size:13px; padding:16px 0; animation:pulse .8s ease-in-out infinite alternate; }
 
+/* ---- Install Banner ---- */
+#install-banner {
+  position:absolute; top:12px; left:50%; transform:translateX(-50%);
+  z-index:50; display:flex; align-items:center; gap:8px;
+  background:rgba(10,20,40,.95); border:1px solid rgba(74,174,255,.35);
+  border-radius:12px; padding:10px 14px;
+  box-shadow:0 4px 20px rgba(0,0,0,.5);
+  font-size:12px; color:#ccd; max-width:320px; width:calc(100% - 32px);
+  animation: banner-in .3s ease;
+}
+@keyframes banner-in {
+  from { opacity:0; transform:translateX(-50%) translateY(-10px); }
+  to   { opacity:1; transform:translateX(-50%) translateY(0); }
+}
+#install-icon { font-size:20px; flex-shrink:0; }
+#install-text { flex:1; line-height:1.35; }
+#install-btn {
+  flex-shrink:0; background:#4aaeff; color:#000; border:none;
+  border-radius:8px; padding:5px 10px; font-size:11px; font-weight:bold;
+  cursor:pointer; white-space:nowrap;
+}
+#install-dismiss {
+  flex-shrink:0; background:none; border:none; color:#445;
+  font-size:14px; cursor:pointer; padding:0 2px; line-height:1;
+}
+#install-dismiss:hover { color:#aac; }
+
 /* ---- How To Play overlay ---- */
 #how-to-play {
   position:absolute; inset:0;
@@ -664,6 +691,13 @@ body {
   </div>
 </div>
 
+<div id="install-banner" style="display:none">
+  <span id="install-icon">📲</span>
+  <span id="install-text"></span>
+  <button id="install-btn" style="display:none"></button>
+  <button id="install-dismiss" onclick="InstallPrompt.dismiss()">✕</button>
+</div>
+
 <div id="how-to-play">
   <div id="htp-inner">
     <img src="kipod_en.png" alt="Kipod Barzel" id="htp-logo">
@@ -791,6 +825,9 @@ const STRINGS = {
     'loading':'Loading…','server-error':'⚠ Could not reach server',
     'anonymous':'Anonymous',
     'drag-aim-release':'drag · aim · release',
+    'install-text-android':'Add to Home Screen for quick access',
+    'install-text-ios':'Tap <strong>Share ↑</strong> then <strong>Add to Home Screen</strong>',
+    'install-btn':'Add',
   },
   he: {
     'htp-sub':'הגן על העיר מפני טילים נכנסים',
@@ -820,6 +857,9 @@ const STRINGS = {
     'loading':'טוען...','server-error':'לא ניתן להתחבר לשרת ⚠',
     'anonymous':'אנונימי',
     'drag-aim-release':'גרור · כוון · שחרר',
+    'install-text-android':'הוסף למסך הבית לגישה מהירה',
+    'install-text-ios':'לחץ <strong>שתף ↑</strong> ואז <strong>הוסף למסך הבית</strong>',
+    'install-btn':'הוסף',
   },
 };
 
@@ -840,6 +880,7 @@ function applyLang(lang){
   h('htp-step1-text','htp-step1'); h('htp-step2-text','htp-step2');
   s('mname-small','mname-small'); s('mname-medium','mname-medium'); s('mname-large','mname-large');
   s('th-label','drag-aim-release');
+  InstallPrompt.applyLang();
   s('iname-guide-irondome','iname-irondome'); s('iname-guide-david','iname-david'); s('iname-guide-arrow','iname-arrow');
   // HUD
   s('score-lbl','score-lbl'); s('city-lbl','city-lbl'); s('wave-lbl','wave-lbl');
@@ -2229,6 +2270,67 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape'||e.key==='p'||e.key==='P') G.togglePause();
 });
 
+// ---- Install Prompt ----
+const InstallPrompt = {
+  _deferred: null,
+  _isIOS: /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream,
+  _isStandalone: window.matchMedia('(display-mode: standalone)').matches || navigator.standalone,
+
+  init(){
+    if(this._isStandalone) return;           // already installed
+    if(localStorage.getItem('install-dismissed')) return; // user dismissed before
+
+    if(this._isIOS){
+      // iOS: show after short delay (no beforeinstallprompt on Safari)
+      setTimeout(()=> this._show('ios'), 1200);
+    } else {
+      // Android/Chrome: wait for browser install event
+      window.addEventListener('beforeinstallprompt', e => {
+        e.preventDefault();
+        this._deferred = e;
+        setTimeout(()=> this._show('android'), 1200);
+      });
+    }
+  },
+
+  _show(platform){
+    const banner = document.getElementById('install-banner');
+    const text   = document.getElementById('install-text');
+    const btn    = document.getElementById('install-btn');
+    const key = platform === 'ios' ? 'install-text-ios' : 'install-text-android';
+    text.innerHTML = T(key);
+    if(platform === 'android'){
+      btn.textContent = T('install-btn');
+      btn.style.display = 'block';
+      btn.onclick = () => this._install();
+    }
+    banner.style.display = 'flex';
+  },
+
+  applyLang(){
+    const banner = document.getElementById('install-banner');
+    if(banner.style.display === 'none') return;
+    const text = document.getElementById('install-text');
+    const btn  = document.getElementById('install-btn');
+    const platform = this._deferred ? 'android' : 'ios';
+    text.innerHTML = T(platform === 'ios' ? 'install-text-ios' : 'install-text-android');
+    if(btn.style.display !== 'none') btn.textContent = T('install-btn');
+  },
+
+  async _install(){
+    if(!this._deferred) return;
+    this._deferred.prompt();
+    const { outcome } = await this._deferred.userChoice;
+    this._deferred = null;
+    if(outcome === 'accepted') this.dismiss();
+  },
+
+  dismiss(){
+    document.getElementById('install-banner').style.display = 'none';
+    localStorage.setItem('install-dismissed', '1');
+  },
+};
+
 // ---- Service Worker ----
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('./sw.js').catch(()=>{});
@@ -2238,6 +2340,7 @@ if('serviceWorker' in navigator){
 resize();
 G.init();
 applyLang(currentLang);
+InstallPrompt.init();
 // Load offline queue and attempt to sync any pending scores
 LB._loadQueue();
 // Pre-fetch session token + leaderboard so gating is ready before first game ends
