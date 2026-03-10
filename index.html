@@ -888,14 +888,23 @@ const LB = {
     } catch(e){ this._token = null; }
   },
 
-  trackGame(score, wave){
+  startGame(){
     this._gameId = null;
     if(!this._token) return;
     fetch(API_URL + '?game=1', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({score, wave, token: this._token})
+      body: JSON.stringify({token: this._token})
     }).then(r=>r.ok?r.json():null).then(d=>{ if(d&&d.game_id) this._gameId=d.game_id; }).catch(()=>{});
+  },
+
+  updateGame(score, wave){
+    if(!this._token || !this._gameId) return;
+    fetch(API_URL + '?game=1', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({score, wave, token: this._token, game_id: this._gameId})
+    }).catch(()=>{});
   },
 
   checkScore(score, wave){
@@ -1790,6 +1799,7 @@ const G = {
     this._updateAmmoUI();
     this._selectBtn('irondome');
     this._buildCity();
+    LB.startGame();
     this._startWave();
   },
 
@@ -1873,6 +1883,7 @@ const G = {
   dismissHowToPlay(){
     document.getElementById('how-to-play').style.display='none';
     if(SFX._ctx && SFX._ctx.state==='suspended') SFX._ctx.resume();
+    LB.startGame();
     this.lastT = performance.now();
   },
 
@@ -1930,6 +1941,7 @@ const G = {
 
   _showBreak(){
     this.state='break'; this.breakT=3.5;
+    LB.updateGame(this.score, this.wave+1);
     this._showBanner(T('wave-clear'),T('preparing-next'),'#44ff44','#aaffaa',false);
   },
 
@@ -1937,14 +1949,14 @@ const G = {
     this.state='win'; this._hideBanner();
     document.getElementById('w-score').textContent=this.score;
     document.getElementById('game-win').style.display='block';
-    LB.trackGame(this.score, this.wave+1);
+    LB.updateGame(this.score, this.wave+1);
     this._checkScoreTO=setTimeout(()=>LB.checkScore(this.score, this.wave+1), 600);
   },
   _lose(){
     this.state='gameover'; this._hideBanner();
     document.getElementById('e-score').textContent=this.score;
     document.getElementById('game-over').style.display='block';
-    LB.trackGame(this.score, this.wave+1);
+    LB.updateGame(this.score, this.wave+1);
     this._checkScoreTO=setTimeout(()=>LB.checkScore(this.score, this.wave+1), 600);
   },
 

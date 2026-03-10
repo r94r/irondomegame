@@ -101,9 +101,10 @@ if($_SERVER['REQUEST_METHOD'] === 'GET'){
 if($_SERVER['REQUEST_METHOD'] === 'POST'){
     $body = json_decode(file_get_contents('php://input'), true);
 
-    // ---- POST ?game=1 → track any game completion (named or anonymous) ----
+    // ---- POST ?game=1 → create or update a game row ----
     if(isset($_GET['game'])){
-        $token = trim($body['token'] ?? '');
+        $token   = trim($body['token']   ?? '');
+        $game_id = (int)($body['game_id'] ?? 0);
         if(!$token || !validateToken($token)){
             http_response_code(403);
             echo json_encode(['error' => 'Invalid or expired session']);
@@ -111,9 +112,17 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
         }
         $score = max(0, (int)($body['score'] ?? 0));
         $wave  = max(1, (int)($body['wave']  ?? 1));
-        $stmt  = $pdo->prepare("INSERT INTO games (score, wave) VALUES (?, ?)");
-        $stmt->execute([$score, $wave]);
-        echo json_encode(['ok' => true, 'game_id' => (int)$pdo->lastInsertId()]);
+        if($game_id > 0){
+            // Update existing row (wave progress or game end)
+            $stmt = $pdo->prepare("UPDATE games SET score=?, wave=? WHERE id=?");
+            $stmt->execute([$score, $wave, $game_id]);
+            echo json_encode(['ok' => true, 'game_id' => $game_id]);
+        } else {
+            // Create new row (game start)
+            $stmt = $pdo->prepare("INSERT INTO games (score, wave) VALUES (?, ?)");
+            $stmt->execute([0, 1]);
+            echo json_encode(['ok' => true, 'game_id' => (int)$pdo->lastInsertId()]);
+        }
         exit;
     }
 
