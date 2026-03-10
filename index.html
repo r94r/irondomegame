@@ -374,7 +374,7 @@ body {
 .icp-btn {
   display:flex; flex-direction:column; align-items:center;
   background:rgba(0,15,40,0.9);
-  border:2px solid #1a6aaa;
+  border:2px solid #1a3a5a;
   border-radius:10px;
   padding:5px 8px 4px;
   cursor:pointer;
@@ -389,16 +389,27 @@ body {
   position:absolute; top:0; left:0; right:0; bottom:0;
   background:linear-gradient(135deg,rgba(255,255,255,0.05),transparent);
 }
-.icp-btn.sel {
-  background:rgba(0,40,100,0.95);
-  border-color:#0f0;
-  box-shadow:0 0 14px #0f06, inset 0 0 8px #0f02;
-}
-.icp-btn.empty { opacity:.4; border-color:#444; cursor:not-allowed; }
-.icp-btn .iname { color:#4af; font-size:10px; font-weight:bold; text-transform:uppercase; letter-spacing:.5px; }
-.icp-btn.sel .iname { color:#0f0; }
+.icp-btn.sel { background:rgba(0,20,50,0.95); }
+.icp-btn.empty { opacity:.4; border-color:#333; cursor:not-allowed; }
+.icp-btn .iname { font-size:10px; font-weight:bold; text-transform:uppercase; letter-spacing:.5px; }
 .icp-btn .iam  { font-size:18px; font-weight:900; color:#fff; line-height:1; }
-.icp-btn .itgt { color:#888; font-size:8px; margin-top:1px; }
+.icp-btn .itgt { font-size:8px; margin-top:1px; }
+
+/* Per-button missile-color accents */
+#btn-irondome { border-color:rgba(74,174,255,.4); }
+#btn-irondome .iname { color:#4aaeff; }
+#btn-irondome .itgt  { color:#4aaeff88; }
+#btn-irondome.sel    { border-color:#4aaeff; box-shadow:0 0 16px rgba(74,174,255,.45), inset 0 0 8px rgba(74,174,255,.15); }
+
+#btn-david { border-color:rgba(255,136,68,.4); }
+#btn-david .iname { color:#ff8844; }
+#btn-david .itgt  { color:#ff884488; }
+#btn-david.sel    { border-color:#ff8844; box-shadow:0 0 16px rgba(255,136,68,.45), inset 0 0 8px rgba(255,136,68,.15); }
+
+#btn-arrow { border-color:rgba(255,68,255,.4); }
+#btn-arrow .iname { color:#ff44ff; }
+#btn-arrow .itgt  { color:#ff44ff88; }
+#btn-arrow.sel    { border-color:#ff44ff; box-shadow:0 0 16px rgba(255,68,255,.45), inset 0 0 8px rgba(255,68,255,.15); }
 .icp-btn .ikey {
   position:absolute; top:3px; right:5px;
   font-size:8px; color:#555; font-weight:bold;
@@ -674,7 +685,7 @@ body {
     <div id="htp-guide">
       <div id="htp-guide-title">Match interceptor to missile size</div>
       <div class="htp-guide-row">
-        <span class="htp-dot" style="color:#ff4444">●</span>
+        <span class="htp-dot" style="color:#4aaeff">●</span>
         <span class="htp-mname" id="mname-small">Small</span>
         <span class="htp-arrow">→</span>
         <span class="htp-key">1</span>
@@ -685,14 +696,14 @@ body {
         <span class="htp-mname" id="mname-medium">Medium</span>
         <span class="htp-arrow">→</span>
         <span class="htp-key">2</span>
-        <span class="htp-iname" style="color:#ffd84a" id="iname-guide-david">David's Sling</span>
+        <span class="htp-iname" style="color:#ff8844" id="iname-guide-david">David's Sling</span>
       </div>
       <div class="htp-guide-row">
         <span class="htp-dot" style="color:#ff44ff">●</span>
         <span class="htp-mname" id="mname-large">Large</span>
         <span class="htp-arrow">→</span>
         <span class="htp-key">3</span>
-        <span class="htp-iname" style="color:#ff6aff" id="iname-guide-arrow">Arrow</span>
+        <span class="htp-iname" style="color:#ff44ff" id="iname-guide-arrow">Arrow</span>
       </div>
     </div>
   </div>
@@ -705,7 +716,7 @@ body {
   <div id="th-wrap">
     <div id="th-finger">👆</div>
     <div id="th-trail"></div>
-    <div id="th-label">drag · aim · release</div>
+    <div id="th-label" data-i18n="drag-aim-release">drag · aim · release</div>
   </div>
   <div id="th-arrow-up">🚀</div>
 </div>
@@ -763,6 +774,7 @@ const STRINGS = {
     'no-scores':'No scores yet — be the first!',
     'loading':'Loading…','server-error':'⚠ Could not reach server',
     'anonymous':'Anonymous',
+    'drag-aim-release':'drag · aim · release',
   },
   he: {
     'htp-sub':'הגן על העיר מפני טילים נכנסים',
@@ -791,6 +803,7 @@ const STRINGS = {
     'no-scores':'אין ניקוד עדיין — היה הראשון!',
     'loading':'טוען...','server-error':'לא ניתן להתחבר לשרת ⚠',
     'anonymous':'אנונימי',
+    'drag-aim-release':'גרור · כוון · שחרר',
   },
 };
 
@@ -810,6 +823,7 @@ function applyLang(lang){
   s('htp-sub','htp-sub'); s('htp-guide-title','htp-guide-title'); s('htp-btn','htp-btn');
   h('htp-step1-text','htp-step1'); h('htp-step2-text','htp-step2');
   s('mname-small','mname-small'); s('mname-medium','mname-medium'); s('mname-large','mname-large');
+  s('th-label','drag-aim-release');
   s('iname-guide-irondome','iname-irondome'); s('iname-guide-david','iname-david'); s('iname-guide-arrow','iname-arrow');
   // HUD
   s('score-lbl','score-lbl'); s('city-lbl','city-lbl'); s('wave-lbl','wave-lbl');
@@ -1155,7 +1169,7 @@ const ICP = {
   arrow:   { name:'Arrow',        col:'#ee66ff', spd:340, r:36,  targets:['large','medium'],len:26, wid:5 },
 };
 const MSL = {
-  small: { col:'#ff4444', len:20, wid:5,  spd:95,  dmg:.35, pts:10 },
+  small: { col:'#4aaeff', len:20, wid:5,  spd:95,  dmg:.35, pts:10 },
   medium:{ col:'#ff8844', len:32, wid:9,  spd:72,  dmg:.65, pts:25 },
   large: { col:'#ff44ff', len:50, wid:14, spd:52,  dmg:1.0, pts:50 },
 };
