@@ -902,6 +902,12 @@ function applyLang(lang){
   if(heB){ heB.classList.toggle('sel', lang==='he'); }
 }
 
+function getUtm(){
+  const raw = new URLSearchParams(location.search).get('utm') || '';
+  const map = {fb:'facebook', facebook:'facebook', wa:'whatsapp', whatsapp:'whatsapp', ig:'instagram', instagram:'instagram'};
+  return map[raw.toLowerCase()] || raw.toLowerCase() || null;
+}
+
 function getPlayerId(){
   let id = localStorage.getItem('id_player');
   if(!id){
@@ -947,7 +953,7 @@ const LB = {
     fetch(API_URL + '?game=1', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({token: this._token})
+      body: JSON.stringify({token: this._token, utm: getUtm()})
     }).then(r=>r.ok?r.json():null).then(d=>{ if(d&&d.game_id) this._gameId=d.game_id; }).catch(()=>{});
   },
 

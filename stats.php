@@ -127,6 +127,19 @@ if($has_games){
         ORDER BY created DESC
         LIMIT 50
     ")->fetchAll();
+
+    // UTM source breakdown (only if column exists)
+    $utm_breakdown = [];
+    try {
+        $utm_breakdown = $pdo->query("
+            SELECT COALESCE(utm, 'direct') AS source,
+                COUNT(*) AS plays,
+                SUM(named) AS named
+            FROM games
+            GROUP BY source
+            ORDER BY plays DESC
+        ")->fetchAll();
+    } catch(Exception $e){}
 }
 ?>
 <!DOCTYPE html>
@@ -233,6 +246,20 @@ if($has_games){
   </tr>
   <?php endforeach; ?>
 </table>
+
+<?php if($utm_breakdown): ?>
+<h2>Traffic Sources</h2>
+<table>
+  <tr><th>Source</th><th class="num">Plays</th><th class="num named">Named</th></tr>
+  <?php foreach($utm_breakdown as $r): ?>
+  <tr>
+    <td><?= htmlspecialchars($r['source']) ?></td>
+    <td class="num"><?= $r['plays'] ?></td>
+    <td class="num named"><?= $r['named'] ?></td>
+  </tr>
+  <?php endforeach; ?>
+</table>
+<?php endif; ?>
 
 <h2>Recent Plays (last 50)</h2>
 <table>

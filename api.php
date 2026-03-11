@@ -79,6 +79,12 @@ if(!$cols){
         ADD UNIQUE INDEX idx_player (player_id)");
 }
 
+// ---- Auto-migrate: add utm column to games if not yet present ----
+$cols = $pdo->query("SHOW COLUMNS FROM games LIKE 'utm'")->fetchAll();
+if(!$cols){
+    $pdo->exec("ALTER TABLE games ADD COLUMN utm VARCHAR(32) DEFAULT NULL");
+}
+
 // ---- One-time dedup: visit api.php?dedup=1 ----
 // Merges duplicate names, keeping only the highest score per name.
 // Run once before deploying player_id support, then remove.
@@ -143,8 +149,10 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
             echo json_encode(['ok' => true, 'game_id' => $game_id]);
         } else {
             // Create new row (game start)
-            $stmt = $pdo->prepare("INSERT INTO games (score, wave) VALUES (?, ?)");
-            $stmt->execute([0, 1]);
+            $utm = preg_replace('/[^a-z0-9]/', '', strtolower(trim($body['utm'] ?? '')));
+            $utm = substr($utm, 0, 32) ?: null;
+            $stmt = $pdo->prepare("INSERT INTO games (score, wave, utm) VALUES (?, ?, ?)");
+            $stmt->execute([0, 1, $utm]);
             echo json_encode(['ok' => true, 'game_id' => (int)$pdo->lastInsertId()]);
         }
         exit;
