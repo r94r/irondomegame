@@ -270,28 +270,43 @@ body {
   background:rgba(2,6,20,.92);
   z-index:40;
   display:flex; flex-direction:column; align-items:center;
+  justify-content:center;
   pointer-events:all;
   backdrop-filter:blur(4px);
   overflow:hidden;
 }
 #htp-inner {
-  flex:1; min-height:0;
   display:flex; flex-direction:column; align-items:center;
   text-align:center; color:#fff;
-  padding:8px 16px 0;
-  max-width:340px; width:100%;
+  width:100%; max-width:340px;
+  height:100%;
   box-sizing:border-box;
-  overflow-y:auto; /* fallback for very small screens */
+}
+/* Zone 1 – logo pinned top */
+#htp-zone-top {
+  flex-shrink:0;
+  display:flex; align-items:flex-start; justify-content:center;
+  padding:12px 16px 0; width:100%;
 }
 #htp-logo {
-  flex:1; min-height:0;
-  width: clamp(120px, 80%, 300px);
+  width:clamp(120px,70%,260px);
   object-fit:contain;
-  margin-bottom:4px;
   filter: drop-shadow(0 0 20px #4aaeff55);
 }
+/* Zone 2 – CTA floats in the middle (fills remaining space, centers content) */
+#htp-zone-mid {
+  flex:1; min-height:0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:8px; width:100%; padding:0 16px;
+}
+/* Zone 3 – instructions + footer pinned bottom */
+#htp-zone-bot {
+  flex-shrink:0;
+  display:flex; flex-direction:column; align-items:center;
+  padding:0 16px 12px; width:100%;
+}
 #htp-sub {
-  font-size:12px; color:#8ab; margin-bottom:12px; flex-shrink:0;
+  font-size:12px; color:#8ab; flex-shrink:0;
 }
 #htp-steps {
   display:flex; justify-content:center; gap:8px;
@@ -312,13 +327,6 @@ body {
 .htp-text strong { color:#fff; }
 
 #htp-btn { font-size:17px; padding:11px 32px; flex-shrink:0; }
-#htp-btn-wrap {
-  flex-shrink:0;
-  width:100%; max-width:340px;
-  padding:8px 20px 14px;
-  display:flex; flex-direction:column; align-items:center;
-  pointer-events:all;
-}
 
 #htp-guide {
   background:rgba(255,255,255,.04);
@@ -687,62 +695,73 @@ body {
 
 <div id="how-to-play">
   <div id="htp-inner">
-    <img src="kipod_en.png" alt="Kipod Barzel" id="htp-logo">
-    <div id="lang-toggle">
-      <button id="lang-en" class="lang-btn sel" onclick="applyLang('en')">EN</button>
-      <button id="lang-he" class="lang-btn" onclick="applyLang('he')">עב</button>
+
+    <!-- Zone 1: Logo -->
+    <div id="htp-zone-top">
+      <img src="kipod_en.png" alt="Kipod Barzel" id="htp-logo">
     </div>
-    <div id="htp-sub">Defend the city from incoming missiles</div>
-    <button class="rbtn" id="htp-btn" onclick="G.dismissHowToPlay()" style="margin-bottom:16px">Let's Go! 🚀</button>
-    <div id="htp-how-title" style="font-size:11px;color:#8ab;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;flex-shrink:0">How to Play?</div>
-    <div id="htp-steps">
-      <div class="htp-step">
-        <div class="htp-anim" id="anim-drag">
-          <div class="htp-rocket" id="htp-r"></div>
-          <div class="htp-band" id="htp-b1"></div>
-          <div class="htp-band" id="htp-b2"></div>
-          <div class="htp-arc"></div>
+
+    <!-- Zone 2: Language + CTA -->
+    <div id="htp-zone-mid">
+      <div id="lang-toggle">
+        <button id="lang-en" class="lang-btn sel" onclick="applyLang('en')">EN</button>
+        <button id="lang-he" class="lang-btn" onclick="applyLang('he')">עב</button>
+      </div>
+      <button class="rbtn" id="htp-btn" onclick="G.dismissHowToPlay()">Let's Go! 🚀</button>
+      <div id="install-row" style="display:none;position:relative;text-align:center">
+        <button id="install-inline-btn" onclick="InstallPrompt.trigger()"></button>
+        <div id="install-ios-tip" style="display:none"></div>
+      </div>
+    </div>
+
+    <!-- Zone 3: Instructions + footer -->
+    <div id="htp-zone-bot">
+      <div id="htp-how-title" style="font-size:20px;font-weight:800;color:#fff;margin-bottom:4px;flex-shrink:0">How to Play?</div>
+      <div id="htp-sub" style="margin-bottom:10px">Defend the city from incoming missiles</div>
+      <div id="htp-steps">
+        <div class="htp-step">
+          <div class="htp-anim" id="anim-drag">
+            <div class="htp-rocket" id="htp-r"></div>
+            <div class="htp-band" id="htp-b1"></div>
+            <div class="htp-band" id="htp-b2"></div>
+            <div class="htp-arc"></div>
+          </div>
+          <div class="htp-text" id="htp-step1-text"><strong>Hold &amp; drag</strong> to pull back<br>the launcher</div>
         </div>
-        <div class="htp-text" id="htp-step1-text"><strong>Hold &amp; drag</strong> to pull back<br>the launcher</div>
-      </div>
-      <div class="htp-step">
-        <div class="htp-anim">
-          <span style="font-size:38px">🚀</span>
+        <div class="htp-step">
+          <div class="htp-anim">
+            <span style="font-size:38px">🚀</span>
+          </div>
+          <div class="htp-text" id="htp-step2-text"><strong>Release</strong> to fire the<br>interceptor</div>
         </div>
-        <div class="htp-text" id="htp-step2-text"><strong>Release</strong> to fire the<br>interceptor</div>
       </div>
+      <div id="htp-guide">
+        <div id="htp-guide-title">Match interceptor to missile size</div>
+        <div class="htp-guide-row">
+          <span class="htp-dot" style="color:#4aaeff">●</span>
+          <span class="htp-mname" id="mname-small">Small</span>
+          <span class="htp-arrow">→</span>
+          <span class="htp-key">1</span>
+          <span class="htp-iname" style="color:#4aaeff" id="iname-guide-irondome">Iron Dome</span>
+        </div>
+        <div class="htp-guide-row">
+          <span class="htp-dot" style="color:#ff8844">●</span>
+          <span class="htp-mname" id="mname-medium">Medium</span>
+          <span class="htp-arrow">→</span>
+          <span class="htp-key">2</span>
+          <span class="htp-iname" style="color:#ff8844" id="iname-guide-david">David's Sling</span>
+        </div>
+        <div class="htp-guide-row">
+          <span class="htp-dot" style="color:#ff44ff">●</span>
+          <span class="htp-mname" id="mname-large">Large</span>
+          <span class="htp-arrow">→</span>
+          <span class="htp-key">3</span>
+          <span class="htp-iname" style="color:#ff44ff" id="iname-guide-arrow">Arrow</span>
+        </div>
+      </div>
+      <p style="font-size:10px;color:#778;text-align:center;margin-top:8px">Created by <a href="mailto:raphael.reinig@gmail.com" style="color:#778;text-decoration:none">Raphael Reinig</a> &nbsp;·&nbsp; <a href="https://buymeacoffee.com/kipod_barzel" target="_blank" rel="noopener" style="color:#ffdd00;text-decoration:none">☕ buy me a coffee</a></p>
     </div>
-    <div id="htp-guide">
-      <div id="htp-guide-title">Match interceptor to missile size</div>
-      <div class="htp-guide-row">
-        <span class="htp-dot" style="color:#4aaeff">●</span>
-        <span class="htp-mname" id="mname-small">Small</span>
-        <span class="htp-arrow">→</span>
-        <span class="htp-key">1</span>
-        <span class="htp-iname" style="color:#4aaeff" id="iname-guide-irondome">Iron Dome</span>
-      </div>
-      <div class="htp-guide-row">
-        <span class="htp-dot" style="color:#ff8844">●</span>
-        <span class="htp-mname" id="mname-medium">Medium</span>
-        <span class="htp-arrow">→</span>
-        <span class="htp-key">2</span>
-        <span class="htp-iname" style="color:#ff8844" id="iname-guide-david">David's Sling</span>
-      </div>
-      <div class="htp-guide-row">
-        <span class="htp-dot" style="color:#ff44ff">●</span>
-        <span class="htp-mname" id="mname-large">Large</span>
-        <span class="htp-arrow">→</span>
-        <span class="htp-key">3</span>
-        <span class="htp-iname" style="color:#ff44ff" id="iname-guide-arrow">Arrow</span>
-      </div>
-    </div>
-    <div id="install-row" style="display:none;position:relative;text-align:center;margin-top:10px">
-      <button id="install-inline-btn" onclick="InstallPrompt.trigger()"></button>
-      <div id="install-ios-tip" style="display:none"></div>
-    </div>
-  </div>
-  <div id="htp-btn-wrap">
-    <p style="font-size:10px;color:#778;text-align:center">Created by <a href="mailto:raphael.reinig@gmail.com" style="color:#778;text-decoration:none">Raphael Reinig</a> &nbsp;·&nbsp; <a href="https://buymeacoffee.com/kipod_barzel" target="_blank" rel="noopener" style="color:#ffdd00;text-decoration:none">☕ buy me a coffee</a></p>
+
   </div>
 </div>
 
