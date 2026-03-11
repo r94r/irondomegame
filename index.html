@@ -817,8 +817,8 @@ const STRINGS = {
     'loading':'Loading…','server-error':'⚠ Could not reach server',
     'anonymous':'Anonymous',
     'drag-aim-release':'drag · aim · release',
-    'install-text-android':'Add to Home Screen for quick access',
     'install-text-ios':'Tap <strong>Share ↑</strong> then <strong>Add to Home Screen</strong>',
+    'install-text-other':'Open browser <strong>menu ⋮</strong> then <strong>Add to Home Screen</strong>',
     'install-btn':'Add App to Homescreen',
   },
   he: {
@@ -849,8 +849,8 @@ const STRINGS = {
     'loading':'טוען...','server-error':'לא ניתן להתחבר לשרת ⚠',
     'anonymous':'אנונימי',
     'drag-aim-release':'גרור · כוון · שחרר',
-    'install-text-android':'הוסף למסך הבית לגישה מהירה',
     'install-text-ios':'לחץ <strong>שתף ↑</strong> ואז <strong>הוסף למסך הבית</strong>',
+    'install-text-other':'פתח את <strong>תפריט הדפדפן ⋮</strong> ואז <strong>הוסף למסך הבית</strong>',
     'install-btn':'הוסף אפליקציה למסך הבית',
   },
 };
@@ -2265,29 +2265,30 @@ document.addEventListener('keydown',e=>{
 // ---- Install Prompt ----
 const InstallPrompt = {
   _deferred: null,
-  _isIOS: /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream,
   _isStandalone: window.matchMedia('(display-mode: standalone)').matches || navigator.standalone,
-  _platform: null,
+  _isIOS: /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+          (/macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1),
 
   init(){
     if(this._isStandalone) return;
     if(localStorage.getItem('install-dismissed')) return;
-    if(this._isIOS){
-      this._platform = 'ios';
+
+    // Listen for Chrome/Edge/Android native install prompt
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      this._deferred = e;
       this._show();
-    } else {
-      window.addEventListener('beforeinstallprompt', e => {
-        e.preventDefault();
-        this._deferred = e;
-        this._platform = 'android';
-        this._show();
-      });
-    }
+    });
+
+    // Show manual instructions for all other browsers (iOS, Firefox, etc.)
+    // after a short delay — if beforeinstallprompt fires it will override
+    setTimeout(() => {
+      if(!this._deferred) this._show();
+    }, 800);
   },
 
   _show(){
-    const btn = document.getElementById('install-inline-btn');
-    btn.textContent = '📲 ' + T('install-btn');
+    document.getElementById('install-inline-btn').textContent = '📲 ' + T('install-btn');
     document.getElementById('install-row').style.display = 'block';
   },
 
@@ -2296,11 +2297,16 @@ const InstallPrompt = {
     if(row.style.display === 'none') return;
     document.getElementById('install-inline-btn').textContent = '📲 ' + T('install-btn');
     const tip = document.getElementById('install-ios-tip');
-    if(tip.style.display !== 'none') tip.innerHTML = T('install-text-ios');
+    if(tip.style.display !== 'none') tip.innerHTML = this._tipText();
+  },
+
+  _tipText(){
+    return this._isIOS ? T('install-text-ios') : T('install-text-other');
   },
 
   async trigger(){
-    if(this._platform === 'android' && this._deferred){
+    if(this._deferred){
+      // Native install (Chrome/Edge/Android)
       this._deferred.prompt();
       const { outcome } = await this._deferred.userChoice;
       this._deferred = null;
@@ -2308,12 +2314,13 @@ const InstallPrompt = {
         document.getElementById('install-row').style.display = 'none';
         localStorage.setItem('install-dismissed', '1');
       }
-    } else if(this._platform === 'ios'){
+    } else {
+      // Manual instructions tooltip
       const tip = document.getElementById('install-ios-tip');
       if(tip.style.display === 'none'){
-        tip.innerHTML = T('install-text-ios');
+        tip.innerHTML = this._tipText();
         tip.style.display = 'block';
-        setTimeout(()=> tip.style.display = 'none', 4000);
+        setTimeout(()=> tip.style.display = 'none', 5000);
       } else {
         tip.style.display = 'none';
       }
