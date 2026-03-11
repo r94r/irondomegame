@@ -69,6 +69,28 @@ try {
     exit;
 }
 
+// ---- Auto-migrate: add player_id column if not yet present ----
+$cols = $pdo->query("SHOW COLUMNS FROM scores LIKE 'player_id'")->fetchAll();
+if(!$cols){
+    $pdo->exec("ALTER TABLE scores
+        ADD COLUMN player_id VARCHAR(64) DEFAULT NULL,
+        ADD UNIQUE INDEX idx_player (player_id)");
+}
+
+// ---- One-time dedup: visit api.php?dedup=1 ----
+// Merges duplicate names, keeping only the highest score per name.
+// Run once before deploying player_id support, then remove.
+if(isset($_GET['dedup'])){
+    $deleted = $pdo->exec("
+        DELETE s1 FROM scores s1
+        INNER JOIN scores s2
+            ON s1.name = s2.name
+           AND (s1.score < s2.score OR (s1.score = s2.score AND s1.id > s2.id))
+    ");
+    echo json_encode(['ok' => true, 'rows_removed' => $deleted]);
+    exit;
+}
+
 // ---- One-time table setup: visit api.php?setup=1 ----
 if(isset($_GET['setup'])){
     $pdo->exec("CREATE TABLE IF NOT EXISTS scores (
@@ -127,11 +149,12 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     }
 
     // ---- POST /api.php  → submit named score to leaderboard ----
-    $name    = trim(strip_tags($body['name']    ?? ''));
-    $score   = (int)($body['score']   ?? 0);
-    $wave    = (int)($body['wave']    ?? 1);
-    $token   = trim($body['token']    ?? '');
-    $game_id = (int)($body['game_id'] ?? 0);
+    $name      = trim(strip_tags($body['name']      ?? ''));
+    $score     = (int)($body['score']     ?? 0);
+    $wave      = (int)($body['wave']      ?? 1);
+    $token     = trim($body['token']      ?? '');
+    $game_id   = (int)($body['game_id']   ?? 0);
+    $player_id = trim($body['player_id']  ?? '');
 
     // 1. Validate session token
     if(!$token || !validateToken($token)){
@@ -163,9 +186,17 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
         exit;
     }
 
-    // 5. Insert score
-    $stmt = $pdo->prepare("INSERT INTO scores (name, score, wave) VALUES (?, ?, ?)");
-    $stmt->execute([$name, $score, $wave]);
+    // 5. Sanitise player_id (alphanumeric + hyphens only, max 64 chars)
+    $player_id = preg_replace('/[^a-zA-Z0-9\-]/', '', $player_id);
+    $player_id = substr($player_id, 0, 64) ?: null;
+
+    // 6. Insert or update: one row per player_id, keep highest score
+    $stmt = $pdo->prepare("INSERT INTO scores (name, score, wave, player_id) VALUES (?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            name  = IF(VALUES(score) >= score, VALUES(name),  name),
+            wave  = IF(VALUES(score) >= score, VALUES(wave),  wave),
+            score = IF(VALUES(score) >= score, VALUES(score), score)");
+    $stmt->execute([$name, $score, $wave, $player_id]);
 
     // 6. Mark the game row as named (if client sent a game_id)
     if($game_id > 0){

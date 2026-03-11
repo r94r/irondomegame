@@ -906,6 +906,20 @@ function applyLang(lang){
   if(heB){ heB.classList.toggle('sel', lang==='he'); }
 }
 
+function getPlayerId(){
+  let id = localStorage.getItem('id_player');
+  if(!id){
+    id = crypto.randomUUID
+      ? crypto.randomUUID()
+      : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+          const r = crypto.getRandomValues(new Uint8Array(1))[0] % 16;
+          return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+    localStorage.setItem('id_player', id);
+  }
+  return id;
+}
+
 const LB = {
   _pending: null,
   _token: null,
@@ -969,7 +983,7 @@ const LB = {
     const res = await fetch(API_URL, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({name, score, wave, token: this._token, game_id: this._gameId})
+      body: JSON.stringify({name, score, wave, token: this._token, game_id: this._gameId, player_id: getPlayerId()})
     });
     if(!res.ok){
       const data = await res.json().catch(()=>({}));
@@ -997,7 +1011,7 @@ const LB = {
         document.getElementById('hs-submit-btn').disabled = false;
       } else {
         // Network failure or expired token (403) — queue for later
-        this._queue.push({name, score, wave, ts: Date.now()});
+        this._queue.push({name, score, wave, player_id: getPlayerId(), ts: Date.now()});
         this._saveQueue();
         document.getElementById('hs-status').textContent = T('offline-queue');
         setTimeout(()=>{ this.hide('highscore-modal'); }, 1800);
