@@ -922,10 +922,13 @@ const LB = {
 
   async fetchToken(){
     try {
-      const res = await fetch(API_URL + '?token=1');
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 5000); // don't hang on poor signal
+      const res = await fetch(API_URL + '?token=1', {signal: ctrl.signal});
+      clearTimeout(timer);
       const data = await res.json();
       if(data.token) this._token = data.token; // keep old token on failure
-    } catch(e){ /* offline — keep existing token, it's valid for 4 hours */ }
+    } catch(e){ /* offline or timeout — keep existing token, valid for 4 hours */ }
   },
 
   startGame(){
@@ -968,12 +971,10 @@ const LB = {
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({name, score, wave, token: this._token, game_id: this._gameId})
     });
-    // Server-side rejection (bad input, cheating) — don't queue these
-    if(res.status===400 || res.status===403 || res.status===429){
+    if(!res.ok){
       const data = await res.json().catch(()=>({}));
-      throw Object.assign(new Error('rejected'), {serverError: data.error||'Rejected'});
+      throw Object.assign(new Error('rejected'), {serverError: data.error||'Rejected', status: res.status});
     }
-    if(!res.ok) throw new Error('network');
     return res;
   },
 
@@ -986,15 +987,16 @@ const LB = {
     try {
       await this._postScore(name, score, wave);
       this.fetchToken();
+      this.syncQueue(); // sync any shelter-queued scores from previous rounds
       document.getElementById('hs-status').textContent = T('saved');
       setTimeout(()=>{ this.hide('highscore-modal'); this.show(); }, 800);
     } catch(e){
-      if(e.serverError){
-        // Server explicitly rejected — show reason, don't queue
+      if(e.serverError && e.status !== 403){
+        // Hard server rejection (400 bad data, 429 rate limit) — show error, don't queue
         document.getElementById('hs-status').textContent = '⚠ ' + e.serverError;
         document.getElementById('hs-submit-btn').disabled = false;
       } else {
-        // Network failure — queue for later
+        // Network failure or expired token (403) — queue for later
         this._queue.push({name, score, wave, ts: Date.now()});
         this._saveQueue();
         document.getElementById('hs-status').textContent = T('offline-queue');
@@ -1004,13 +1006,14 @@ const LB = {
   },
 
   async syncQueue(){
-    if(!this._queue.length || !navigator.onLine) return;
-    await this.fetchToken();
-    if(!this._token) return;
+    if(!this._queue.length) return;
     // Drop entries older than 24 hours
     const cutoff = Date.now() - 86400000;
     this._queue = this._queue.filter(e => e.ts > cutoff);
     this._saveQueue();
+    if(!this._queue.length) return;
+    await this.fetchToken();
+    if(!this._token) return;
     for(const entry of [...this._queue]){
       try {
         await this._postScore(entry.name, entry.score, entry.wave);
@@ -1018,12 +1021,21 @@ const LB = {
         this._saveQueue();
         await this.fetchToken(); // fresh token for next entry
       } catch(e){
-        if(e.serverError){
-          // Server rejected this entry — drop it silently
+        if(e.status === 400){
+          // Permanent bad-data rejection — drop silently
           this._queue = this._queue.filter(e2 => e2.ts !== entry.ts);
           this._saveQueue();
+        } else if(e.status === 403){
+          // Expired token — fetch fresh token and retry this entry once
+          await this.fetchToken();
+          if(!this._token){ break; }
+          try {
+            await this._postScore(entry.name, entry.score, entry.wave);
+            this._queue = this._queue.filter(e2 => e2.ts !== entry.ts);
+            this._saveQueue();
+          } catch(e2){ break; }
         } else {
-          break; // still offline, stop trying
+          break; // network failure or rate limit — try again later
         }
       }
     }
@@ -2346,6 +2358,8 @@ LB.show().then(()=>{ document.getElementById('leaderboard-modal').style.display=
 LB.syncQueue();
 // Sync whenever the browser comes back online
 window.addEventListener('online', ()=> LB.syncQueue());
+// Periodic sync every 30s as fallback (online event not always reliable)
+setInterval(()=> LB.syncQueue(), 30000);
 </script>
 </body>
 </html>
