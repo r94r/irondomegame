@@ -22,7 +22,7 @@
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://r94r.github.io/irondomegame/">
+<meta property="og:url" content="https://kipod.fun">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Kipod Barzel – Iron Hedgehog">
 <meta name="twitter:description" content="Defend your city. Have fun in the shelter.">
@@ -760,7 +760,10 @@ body {
   <p class="sub" id="go-sub">All buildings have been destroyed.</p>
   <p class="sc"><span id="go-score-lbl">Score: </span><strong id="e-score">0</strong></p>
   <button class="rbtn" id="go-play-again" onclick="G.restart()">Play Again</button>
-  <button class="rbtn-ghost" id="go-view-lb" onclick="LB.show()" style="margin-top:8px">🏆 Leaderboard</button>
+  <div style="display:flex;gap:8px;justify-content:center;margin-top:8px">
+    <button class="rbtn-ghost" id="go-view-lb" onclick="LB.show()">🏆 Leaderboard</button>
+    <button class="rbtn-ghost" id="go-share" onclick="shareScore()">📤 Share</button>
+  </div>
   <div style="margin-top:14px">
     <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="kipod_barzel" data-color="#FFDD00" data-emoji="☕" data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff"></script>
   </div>
@@ -771,7 +774,10 @@ body {
   <p class="sub" id="gw-sub">You survived all waves!</p>
   <p class="sc"><span id="gw-score-lbl">Score: </span><strong id="w-score">0</strong></p>
   <button class="rbtn" id="gw-play-again" onclick="G.restart()">Play Again</button>
-  <button class="rbtn-ghost" id="gw-view-lb" onclick="LB.show()" style="margin-top:8px">🏆 Leaderboard</button>
+  <div style="display:flex;gap:8px;justify-content:center;margin-top:8px">
+    <button class="rbtn-ghost" id="gw-view-lb" onclick="LB.show()">🏆 Leaderboard</button>
+    <button class="rbtn-ghost" id="gw-share" onclick="shareScore()">📤 Share</button>
+  </div>
   <div style="margin-top:14px">
     <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="kipod_barzel" data-color="#FFDD00" data-emoji="☕" data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff"></script>
   </div>
@@ -806,6 +812,8 @@ const STRINGS = {
     'hs-title':'NEW HIGH SCORE!','hs-sub':'Enter your name for the leaderboard:',
     'hs-submit':'Submit 🚀','hs-skip':'Skip',
     'lb-title':'LEADERBOARD','lb-close':'Close','view-lb':'🏆 Leaderboard',
+    'share-text':'I scored {score} pts on wave {wave} in Kipod Barzel! 🦔 Can you beat me?',
+    'share-copied':'Link copied!',
     'go-title':'CITY DESTROYED','go-sub':'All buildings have been destroyed.',
     'score-prefix':'Score: ','play-again':'Play Again',
     'gw-title':'DEFENSE SUCCESSFUL','gw-sub':'You survived all waves!',
@@ -838,6 +846,8 @@ const STRINGS = {
     'hs-title':'שיא חדש!','hs-sub':'הכנס שם לטבלת הדירוג:',
     'hs-submit':'שלח 🚀','hs-skip':'דלג',
     'lb-title':'טבלת שיאים','lb-close':'סגור','view-lb':'🏆 טבלת שיאים',
+    'share-text':'הגעתי ל-{score} נקודות בגל {wave} בכיפוד ברזל! 🦔 האם תוכל/י לנצח אותי?',
+    'share-copied':'הקישור הועתק!',
     'go-title':'העיר נהרסה','go-sub':'כל הבניינים נהרסו.',
     'score-prefix':'ניקוד: ','play-again':'שחק שוב',
     'gw-title':'הגנה הצליחה','gw-sub':'שרדת את כל הגלים!',
@@ -2289,6 +2299,30 @@ document.addEventListener('keydown',e=>{
   if(e.key==='3') G.selectType('arrow');
   if(e.key==='Escape'||e.key==='p'||e.key==='P') G.togglePause();
 });
+
+// ---- Share Score ----
+function shareScore(){
+  const score = G.score;
+  const wave  = G.wave + 1;
+  const url   = 'https://kipod.fun';
+  const text  = T('share-text')
+    .replace('{score}', score.toLocaleString())
+    .replace('{wave}',  wave);
+
+  if(navigator.share){
+    navigator.share({ title: 'Kipod Barzel', text, url }).catch(()=>{});
+  } else {
+    // Fallback: copy to clipboard
+    navigator.clipboard.writeText(text + '\n' + url).then(()=>{
+      const btns = document.querySelectorAll('#go-share, #gw-share');
+      btns.forEach(b => {
+        const orig = b.textContent;
+        b.textContent = T('share-copied');
+        setTimeout(()=> b.textContent = orig, 2000);
+      });
+    }).catch(()=>{});
+  }
+}
 
 // ---- Install Prompt ----
 const InstallPrompt = {

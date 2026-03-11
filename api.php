@@ -12,9 +12,11 @@
 
 require __DIR__ . '/config.php'; // DB_HOST, DB_NAME, DB_USER, DB_PASS, TOKEN_SECRET
 
-// ---- CORS – allow requests from GitHub Pages + localhost ----
+// ---- CORS – allow requests from kipod.fun + localhost ----
 $allowed = [
-    'https://r94r.github.io',
+    'https://kipod.fun',
+    'https://www.kipod.fun',
+    'https://r94r.github.io', // keep for backwards compat
     'http://localhost',
     'http://127.0.0.1',
     'null', // file:// during local dev
@@ -23,7 +25,7 @@ $origin = $_SERVER['HTTP_ORIGIN'] ?? '*';
 if(in_array($origin, $allowed) || str_starts_with($origin,'http://localhost') || str_starts_with($origin,'http://127')){
     header("Access-Control-Allow-Origin: $origin");
 } else {
-    header("Access-Control-Allow-Origin: https://r94r.github.io");
+    header("Access-Control-Allow-Origin: https://kipod.fun");
 }
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
