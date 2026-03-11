@@ -311,12 +311,11 @@ body {
 .htp-text { font-size:11px; color:#ccd; line-height:1.4; }
 .htp-text strong { color:#fff; }
 
-#htp-btn { font-size:17px; padding:11px 32px; }
+#htp-btn { font-size:17px; padding:11px 32px; flex-shrink:0; }
 #htp-btn-wrap {
   flex-shrink:0;
   width:100%; max-width:340px;
-  padding:16px 20px 24px;
-  background:linear-gradient(transparent, rgba(2,6,20,.97) 30%);
+  padding:8px 20px 14px;
   display:flex; flex-direction:column; align-items:center;
   pointer-events:all;
 }
@@ -694,6 +693,8 @@ body {
       <button id="lang-he" class="lang-btn" onclick="applyLang('he')">עב</button>
     </div>
     <div id="htp-sub">Defend the city from incoming missiles</div>
+    <button class="rbtn" id="htp-btn" onclick="G.dismissHowToPlay()" style="margin-bottom:16px">Let's Go! 🚀</button>
+    <div id="htp-how-title" style="font-size:11px;color:#8ab;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;flex-shrink:0">How to Play?</div>
     <div id="htp-steps">
       <div class="htp-step">
         <div class="htp-anim" id="anim-drag">
@@ -741,8 +742,7 @@ body {
     </div>
   </div>
   <div id="htp-btn-wrap">
-    <button class="rbtn" id="htp-btn" onclick="G.dismissHowToPlay()">Let's Go! 🚀</button>
-    <p style="margin-top:10px;font-size:10px;color:#778;text-align:center">Created by <a href="mailto:raphael.reinig@gmail.com" style="color:#778;text-decoration:none">Raphael Reinig</a> &nbsp;·&nbsp; <a href="https://buymeacoffee.com/kipod_barzel" target="_blank" rel="noopener" style="color:#ffdd00;text-decoration:none">☕ buy me a coffee</a></p>
+    <p style="font-size:10px;color:#778;text-align:center">Created by <a href="mailto:raphael.reinig@gmail.com" style="color:#778;text-decoration:none">Raphael Reinig</a> &nbsp;·&nbsp; <a href="https://buymeacoffee.com/kipod_barzel" target="_blank" rel="noopener" style="color:#ffdd00;text-decoration:none">☕ buy me a coffee</a></p>
   </div>
 </div>
 
@@ -799,6 +799,7 @@ const API_URL = 'api.php'; // same folder; change to full URL when on different 
 const STRINGS = {
   en: {
     'htp-sub':'Defend the city from incoming missiles',
+    'htp-how-title':'How to Play?',
     'htp-step1':'<strong>Hold &amp; drag</strong> to pull back<br>the launcher',
     'htp-step2':'<strong>Release</strong> to fire the<br>interceptor',
     'htp-guide-title':'Match interceptor to missile size',
@@ -833,6 +834,7 @@ const STRINGS = {
   },
   he: {
     'htp-sub':'הגן על העיר מפני טילים נכנסים',
+    'htp-how-title':'איך משחקים?',
     'htp-step1':'<strong>לחץ וגרור</strong> לאחור<br>לכיוון הקשת',
     'htp-step2':'<strong>שחרר</strong> כדי לירות<br>מיירט',
     'htp-guide-title':'התאם מיירט לגודל הטיל',
@@ -880,7 +882,7 @@ function applyLang(lang){
   const h = (id,key) => { const e=document.getElementById(id); if(e) e.innerHTML=T(key); };
 
   // Intro
-  s('htp-sub','htp-sub'); s('htp-guide-title','htp-guide-title'); s('htp-btn','htp-btn');
+  s('htp-sub','htp-sub'); s('htp-guide-title','htp-guide-title'); s('htp-btn','htp-btn'); s('htp-how-title','htp-how-title');
   h('htp-step1-text','htp-step1'); h('htp-step2-text','htp-step2');
   s('mname-small','mname-small'); s('mname-medium','mname-medium'); s('mname-large','mname-large');
   s('th-label','drag-aim-release');
