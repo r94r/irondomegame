@@ -2325,7 +2325,6 @@ const InstallPrompt = {
 
   init(){
     if(this._isStandalone) return;
-    if(localStorage.getItem('install-dismissed')) return;
 
     // Listen for Chrome/Edge/Android native install prompt
     window.addEventListener('beforeinstallprompt', e => {
@@ -2366,7 +2365,6 @@ const InstallPrompt = {
       this._deferred = null;
       if(outcome === 'accepted'){
         document.getElementById('install-row').style.display = 'none';
-        localStorage.setItem('install-dismissed', '1');
       }
     } else {
       // Manual instructions tooltip
