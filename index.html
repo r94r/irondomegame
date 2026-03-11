@@ -903,7 +903,9 @@ function applyLang(lang){
 }
 
 function getUtm(){
-  const raw = new URLSearchParams(location.search).get('utm') || '';
+  const params = new URLSearchParams(location.search);
+  const raw = params.get('utm') || '';
+  if(!raw && params.has('fbclid')) return 'facebook';
   const map = {fb:'facebook', facebook:'facebook', wa:'whatsapp', whatsapp:'whatsapp', ig:'instagram', instagram:'instagram'};
   return map[raw.toLowerCase()] || raw.toLowerCase() || null;
 }
