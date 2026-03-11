@@ -2227,12 +2227,20 @@ const G = {
     sky.addColorStop(0,'#040410'); sky.addColorStop(.65,'#0a1030'); sky.addColorStop(1,'#180e25');
     ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
 
-    // Stars (deterministic)
-    for(let i=0;i<70;i++){
-      const sx=((i*137.508+11)%W), sy=((i*97.33+7)%(H*.58));
-      const sa=(Math.sin(i*0.7+performance.now()*.0008)*.25+.75)*(i%4===0?1.1:.6);
+    // Stars (seeded random scatter)
+    if(!this._stars){
+      const rng=s=>{s=Math.sin(s)*43758.5453123;return s-Math.floor(s);};
+      this._stars=Array.from({length:80},(_,i)=>({
+        x:rng(i*1.7+3)*W, y:rng(i*2.3+7)*(H*.58),
+        r:rng(i*3.1+11)<.18?1.2:.6,
+        phase:rng(i*5.9+19)*Math.PI*2
+      }));
+    }
+    const now=performance.now()*.0008;
+    for(const s of this._stars){
+      const sa=(Math.sin(s.phase+now)*.25+.75);
       ctx.fillStyle=`rgba(255,255,255,${sa})`;
-      ctx.beginPath(); ctx.arc(sx,sy,i%5===0?1.2:.6,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fill();
     }
 
     // Horizon glow (city light pollution)
