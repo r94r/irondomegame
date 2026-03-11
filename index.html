@@ -760,6 +760,7 @@ body {
   <p class="sub" id="go-sub">All buildings have been destroyed.</p>
   <p class="sc"><span id="go-score-lbl">Score: </span><strong id="e-score">0</strong></p>
   <button class="rbtn" id="go-play-again" onclick="G.restart()">Play Again</button>
+  <button class="rbtn-ghost" id="go-view-lb" onclick="LB.show()" style="margin-top:8px">🏆 Leaderboard</button>
   <div style="margin-top:14px">
     <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="kipod_barzel" data-color="#FFDD00" data-emoji="☕" data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff"></script>
   </div>
@@ -770,6 +771,7 @@ body {
   <p class="sub" id="gw-sub">You survived all waves!</p>
   <p class="sc"><span id="gw-score-lbl">Score: </span><strong id="w-score">0</strong></p>
   <button class="rbtn" id="gw-play-again" onclick="G.restart()">Play Again</button>
+  <button class="rbtn-ghost" id="gw-view-lb" onclick="LB.show()" style="margin-top:8px">🏆 Leaderboard</button>
   <div style="margin-top:14px">
     <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="kipod_barzel" data-color="#FFDD00" data-emoji="☕" data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff"></script>
   </div>
@@ -803,7 +805,7 @@ const STRINGS = {
     'pause-title':'PAUSED','pause-sub':'Press P or tap Resume','pause-resume':'▶ Resume',
     'hs-title':'NEW HIGH SCORE!','hs-sub':'Enter your name for the leaderboard:',
     'hs-submit':'Submit 🚀','hs-skip':'Skip',
-    'lb-title':'LEADERBOARD','lb-close':'Close',
+    'lb-title':'LEADERBOARD','lb-close':'Close','view-lb':'🏆 Leaderboard',
     'go-title':'CITY DESTROYED','go-sub':'All buildings have been destroyed.',
     'score-prefix':'Score: ','play-again':'Play Again',
     'gw-title':'DEFENSE SUCCESSFUL','gw-sub':'You survived all waves!',
@@ -835,7 +837,7 @@ const STRINGS = {
     'pause-title':'מושהה','pause-sub':'לחץ P או הקש המשך','pause-resume':'▶ המשך',
     'hs-title':'שיא חדש!','hs-sub':'הכנס שם לטבלת הדירוג:',
     'hs-submit':'שלח 🚀','hs-skip':'דלג',
-    'lb-title':'טבלת שיאים','lb-close':'סגור',
+    'lb-title':'טבלת שיאים','lb-close':'סגור','view-lb':'🏆 טבלת שיאים',
     'go-title':'העיר נהרסה','go-sub':'כל הבניינים נהרסו.',
     'score-prefix':'ניקוד: ','play-again':'שחק שוב',
     'gw-title':'הגנה הצליחה','gw-sub':'שרדת את כל הגלים!',
@@ -894,9 +896,9 @@ function applyLang(lang){
   s('lb-title','lb-title'); s('lb-close-btn','lb-close');
   // End screens
   s('go-title','go-title'); s('go-sub','go-sub');
-  s('go-score-lbl','score-prefix'); s('go-play-again','play-again');
+  s('go-score-lbl','score-prefix'); s('go-play-again','play-again'); s('go-view-lb','view-lb');
   s('gw-title','gw-title'); s('gw-sub','gw-sub');
-  s('gw-score-lbl','score-prefix'); s('gw-play-again','play-again');
+  s('gw-score-lbl','score-prefix'); s('gw-play-again','play-again'); s('gw-view-lb','view-lb');
   // Logo
   const logo = document.getElementById('htp-logo');
   if(logo) logo.src = lang==='he' ? 'kipod_he.png' : 'kipod_en.png';
