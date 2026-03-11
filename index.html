@@ -545,7 +545,8 @@ body {
 
 /* ---- Language toggle ---- */
 #lang-toggle {
-  display:flex; gap:6px; justify-content:center; margin-bottom:10px;
+  position:absolute; top:10px; right:12px;
+  display:flex; gap:6px; z-index:2;
 }
 .lang-btn {
   background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.2);
@@ -659,6 +660,10 @@ body {
 </div>
 
 <div id="how-to-play">
+  <div id="lang-toggle">
+    <button id="lang-en" class="lang-btn sel" onclick="applyLang('en')">EN</button>
+    <button id="lang-he" class="lang-btn" onclick="applyLang('he')">עב</button>
+  </div>
   <div id="htp-inner">
 
     <!-- Zone 1: Logo -->
@@ -666,12 +671,8 @@ body {
       <img src="kipod_en.png" alt="Kipod Barzel" id="htp-logo">
     </div>
 
-    <!-- Zone 2: Language + CTA -->
+    <!-- Zone 2: CTA -->
     <div id="htp-zone-mid">
-      <div id="lang-toggle">
-        <button id="lang-en" class="lang-btn sel" onclick="applyLang('en')">EN</button>
-        <button id="lang-he" class="lang-btn" onclick="applyLang('he')">עב</button>
-      </div>
       <button class="rbtn" id="htp-btn" onclick="G.dismissHowToPlay()">Let's Go! 🚀</button>
       <div id="install-row" style="display:none;position:relative;text-align:center">
         <button id="install-inline-btn" onclick="InstallPrompt.trigger()"></button>
