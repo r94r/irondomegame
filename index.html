@@ -905,13 +905,14 @@ function applyLang(lang){
   if(heB){ heB.classList.toggle('sel', lang==='he'); }
 }
 
-function getUtm(){
+const _utmValue = (()=>{
   const params = new URLSearchParams(location.search);
   const raw = params.get('utm') || '';
   if(!raw && params.has('fbclid')) return 'facebook';
   const map = {fb:'facebook', facebook:'facebook', wa:'whatsapp', whatsapp:'whatsapp', ig:'instagram', instagram:'instagram'};
   return map[raw.toLowerCase()] || raw.toLowerCase() || null;
-}
+})();
+function getUtm(){ return _utmValue; }
 
 function getPlayerId(){
   let id = localStorage.getItem('id_player');
