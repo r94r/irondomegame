@@ -79,6 +79,12 @@ if(!$cols){
         ADD UNIQUE INDEX idx_player (player_id)");
 }
 
+// ---- Auto-migrate: add game_id column to scores if not yet present ----
+$cols = $pdo->query("SHOW COLUMNS FROM scores LIKE 'game_id'")->fetchAll();
+if(!$cols){
+    $pdo->exec("ALTER TABLE scores ADD COLUMN game_id INT DEFAULT NULL");
+}
+
 // ---- Auto-migrate: add utm column to games if not yet present ----
 $cols = $pdo->query("SHOW COLUMNS FROM games LIKE 'utm'")->fetchAll();
 if(!$cols){
@@ -201,12 +207,14 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     $player_id = substr($player_id, 0, 64) ?: null;
 
     // 6. Insert or update: one row per player_id, keep highest score
-    $stmt = $pdo->prepare("INSERT INTO scores (name, score, wave, player_id) VALUES (?, ?, ?, ?)
+    $gid = $game_id > 0 ? $game_id : null;
+    $stmt = $pdo->prepare("INSERT INTO scores (name, score, wave, player_id, game_id) VALUES (?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
-            name  = IF(VALUES(score) >= score, VALUES(name),  name),
-            wave  = IF(VALUES(score) >= score, VALUES(wave),  wave),
-            score = IF(VALUES(score) >= score, VALUES(score), score)");
-    $stmt->execute([$name, $score, $wave, $player_id]);
+            name    = IF(VALUES(score) >= score, VALUES(name),    name),
+            wave    = IF(VALUES(score) >= score, VALUES(wave),    wave),
+            score   = IF(VALUES(score) >= score, VALUES(score),   score),
+            game_id = IF(VALUES(score) >= score, VALUES(game_id), game_id)");
+    $stmt->execute([$name, $score, $wave, $player_id, $gid]);
 
     // 6. Mark the game row as named (if client sent a game_id)
     if($game_id > 0){

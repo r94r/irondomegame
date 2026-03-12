@@ -122,9 +122,11 @@ if($has_games){
     ")->fetchAll();
 
     $recent_games = $pdo->query("
-        SELECT score, wave, named, created
-        FROM games
-        ORDER BY created DESC
+        SELECT g.score, g.wave, g.named, g.created,
+               s.name
+        FROM games g
+        LEFT JOIN scores s ON s.game_id = g.id
+        ORDER BY g.created DESC
         LIMIT 50
     ")->fetchAll();
 
@@ -263,11 +265,11 @@ if($has_games){
 
 <h2>Recent Plays (last 50)</h2>
 <table>
-  <tr><th>Time</th><th>Type</th><th class="num">Score</th><th class="num">Wave</th></tr>
+  <tr><th>Time</th><th>Name</th><th class="num">Score</th><th class="num">Wave</th></tr>
   <?php foreach($recent_games as $r): ?>
   <tr>
     <td style="color:#445"><?= $r['created'] ?></td>
-    <td><?= $r['named'] ? '<span class="named">named</span>' : '<span class="anon">anonymous</span>' ?></td>
+    <td><?= $r['name'] ? '<span class="named">'.htmlspecialchars($r['name']).'</span>' : '<span class="anon">anonymous</span>' ?></td>
     <td class="num" style="color:#fff"><?= number_format($r['score']) ?></td>
     <td class="num wnb"><?= $r['wave'] ?></td>
   </tr>
