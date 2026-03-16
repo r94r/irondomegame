@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://kipod.fun/sitemap.xml
