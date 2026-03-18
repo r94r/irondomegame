@@ -91,6 +91,12 @@ if(!$cols){
     $pdo->exec("ALTER TABLE games ADD COLUMN utm VARCHAR(32) DEFAULT NULL");
 }
 
+// ---- Auto-migrate: add player_id column to games if not yet present ----
+$cols = $pdo->query("SHOW COLUMNS FROM games LIKE 'player_id'")->fetchAll();
+if(!$cols){
+    $pdo->exec("ALTER TABLE games ADD COLUMN player_id VARCHAR(64) DEFAULT NULL");
+}
+
 // ---- One-time dedup: visit api.php?dedup=1 ----
 // Merges duplicate names, keeping only the highest score per name.
 // Run once before deploying player_id support, then remove.
@@ -148,17 +154,25 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
         }
         $score = max(0, (int)($body['score'] ?? 0));
         $wave  = max(1, (int)($body['wave']  ?? 1));
+        $pid = preg_replace('/[^a-zA-Z0-9\-]/', '', trim($body['player_id'] ?? ''));
+        $pid = substr($pid, 0, 64) ?: null;
         if($game_id > 0){
             // Update existing row (wave progress or game end)
-            $stmt = $pdo->prepare("UPDATE games SET score=?, wave=? WHERE id=?");
-            $stmt->execute([$score, $wave, $game_id]);
+            // Also backfill player_id if not yet set
+            if($pid){
+                $stmt = $pdo->prepare("UPDATE games SET score=?, wave=?, player_id=COALESCE(player_id,?) WHERE id=?");
+                $stmt->execute([$score, $wave, $pid, $game_id]);
+            } else {
+                $stmt = $pdo->prepare("UPDATE games SET score=?, wave=? WHERE id=?");
+                $stmt->execute([$score, $wave, $game_id]);
+            }
             echo json_encode(['ok' => true, 'game_id' => $game_id]);
         } else {
             // Create new row (game start)
             $utm = preg_replace('/[^a-z0-9]/', '', strtolower(trim($body['utm'] ?? '')));
             $utm = substr($utm, 0, 32) ?: null;
-            $stmt = $pdo->prepare("INSERT INTO games (score, wave, utm) VALUES (?, ?, ?)");
-            $stmt->execute([0, 1, $utm]);
+            $stmt = $pdo->prepare("INSERT INTO games (score, wave, utm, player_id) VALUES (?, ?, ?, ?)");
+            $stmt->execute([0, 1, $utm, $pid]);
             echo json_encode(['ok' => true, 'game_id' => (int)$pdo->lastInsertId()]);
         }
         exit;

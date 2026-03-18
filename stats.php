@@ -125,9 +125,24 @@ if($has_games){
         SELECT g.score, g.wave, g.named, g.created,
                s.name
         FROM games g
-        LEFT JOIN scores s ON s.game_id = g.id
+        LEFT JOIN scores s ON s.player_id = g.player_id AND g.player_id IS NOT NULL
         ORDER BY g.created DESC
         LIMIT 50
+    ")->fetchAll();
+
+    // Rounds per known player (all games where player_id is recognisable)
+    $rounds_per_player = $pdo->query("
+        SELECT s.name,
+               COUNT(g.id)          AS total_rounds,
+               SUM(g.named)         AS named_rounds,
+               COUNT(g.id)-SUM(g.named) AS anon_rounds,
+               MAX(g.score)         AS best_score,
+               MAX(g.wave)          AS best_wave,
+               ROUND(AVG(g.score))  AS avg_score
+        FROM games g
+        JOIN scores s ON s.player_id = g.player_id
+        GROUP BY s.player_id, s.name
+        ORDER BY total_rounds DESC
     ")->fetchAll();
 
     // UTM source breakdown (only if column exists)
@@ -258,6 +273,26 @@ if($has_games){
     <td><?= htmlspecialchars($r['source']) ?></td>
     <td class="num"><?= $r['plays'] ?></td>
     <td class="num named"><?= $r['named'] ?></td>
+  </tr>
+  <?php endforeach; ?>
+</table>
+<?php endif; ?>
+
+<?php if($rounds_per_player): ?>
+<h2>Rounds per Known Player</h2>
+<p class="note">Players identified by device ID — counts all their games, not just leaderboard submissions.</p>
+<table>
+  <tr><th>#</th><th>Name</th><th class="num">Total Rounds</th><th class="num named">Named</th><th class="num anon">Anon</th><th class="num">Best Score</th><th class="num">Avg Score</th><th class="num wnb">Best Wave</th></tr>
+  <?php foreach($rounds_per_player as $i => $p): ?>
+  <tr>
+    <td style="color:#445"><?= $i+1 ?></td>
+    <td class="named"><?= htmlspecialchars($p['name']) ?></td>
+    <td class="num" style="color:#fff;font-weight:bold"><?= $p['total_rounds'] ?></td>
+    <td class="num named"><?= $p['named_rounds'] ?></td>
+    <td class="num anon"><?= $p['anon_rounds'] ?></td>
+    <td class="num" style="color:#fff"><?= number_format($p['best_score']) ?></td>
+    <td class="num"><?= number_format($p['avg_score']) ?></td>
+    <td class="num wnb"><?= $p['best_wave'] ?></td>
   </tr>
   <?php endforeach; ?>
 </table>

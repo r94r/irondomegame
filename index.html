@@ -987,7 +987,7 @@ const LB = {
     fetch(API_URL + '?game=1', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({token: this._token, utm: getUtm()})
+      body: JSON.stringify({token: this._token, utm: getUtm(), player_id: getPlayerId()})
     }).then(r=>r.ok?r.json():null).then(d=>{ if(d&&d.game_id) this._gameId=d.game_id; }).catch(()=>{});
   },
 
