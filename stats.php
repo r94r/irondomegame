@@ -44,16 +44,16 @@ $totals = $pdo->query("
 ")->fetch();
 
 $per_player = $pdo->query("
-    SELECT
-        name,
-        COUNT(*)            AS rounds,
-        MAX(score)          AS best_score,
-        ROUND(AVG(score))   AS avg_score,
-        MAX(wave)           AS best_wave,
-        MIN(created)        AS first_seen,
-        MAX(created)        AS last_seen
-    FROM scores
-    GROUP BY name
+    SELECT s.name,
+        COUNT(g.id)          AS total_rounds,
+        MAX(s.score)         AS best_score,
+        ROUND(AVG(s.score))  AS avg_score,
+        MAX(s.wave)          AS best_wave,
+        MIN(s.created)       AS first_seen,
+        MAX(s.created)       AS last_seen
+    FROM scores s
+    LEFT JOIN games g ON g.player_id = s.player_id AND s.player_id IS NOT NULL
+    GROUP BY s.name
     ORDER BY best_score DESC
 ")->fetchAll();
 
@@ -219,12 +219,12 @@ if($has_games){
 
 <h3>Per Player</h3>
 <table>
-  <tr><th>#</th><th>Name</th><th class="num">Rounds</th><th class="num">Best Score</th><th class="num">Avg Score</th><th class="num">Best Wave</th><th>First Seen</th><th>Last Seen</th></tr>
+  <tr><th>#</th><th>Name</th><th class="num">Total Rounds</th><th class="num">Best Score</th><th class="num">Avg Score</th><th class="num">Best Wave</th><th>First Seen</th><th>Last Seen</th></tr>
   <?php foreach($per_player as $i => $p): ?>
   <tr>
     <td style="color:#445"><?= $i+1 ?></td>
     <td><?= htmlspecialchars($p['name']) ?></td>
-    <td class="num"><?= $p['rounds'] ?></td>
+    <td class="num"><?= $p['total_rounds'] ?: '<span class="anon">—</span>' ?></td>
     <td class="num" style="color:#fff;font-weight:bold"><?= number_format($p['best_score']) ?></td>
     <td class="num"><?= number_format($p['avg_score']) ?></td>
     <td class="num wnb"><?= $p['best_wave'] ?></td>
