@@ -9,7 +9,7 @@ require __DIR__ . '/config.php';
 // ---- Auth ----
 $user = $_SERVER['PHP_AUTH_USER'] ?? '';
 $pass = $_SERVER['PHP_AUTH_PW']   ?? '';
-if($user !== 'admin' || $pass !== STATS_PASS){
+if ($user !== 'admin' || $pass !== STATS_PASS) {
     header('WWW-Authenticate: Basic realm="Kipod Stats"');
     header('HTTP/1.0 401 Unauthorized');
     echo 'Unauthorized';
@@ -17,19 +17,40 @@ if($user !== 'admin' || $pass !== STATS_PASS){
 }
 
 // ---- DB ----
-$pdo = new PDO("mysql:host=".DB_HOST.";dbname=".DB_NAME.";charset=utf8mb4", DB_USER, DB_PASS, [
+$pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4", DB_USER, DB_PASS, [
     PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
 ]);
+
+// ---- Period filter ----
+$period = isset($_GET['period']) ? (int)$_GET['period'] : 0;
+if ($period === 1) {
+    $w            = "WHERE DATE(created) = CURDATE()";
+    $wg           = "WHERE DATE(g.created) = CURDATE()";
+    $period_label = 'Today';
+} elseif ($period === 7) {
+    $w            = "WHERE created >= NOW() - INTERVAL 7 DAY";
+    $wg           = "WHERE g.created >= NOW() - INTERVAL 7 DAY";
+    $period_label = 'Last 7 Days';
+} elseif ($period === 30) {
+    $w            = "WHERE created >= NOW() - INTERVAL 30 DAY";
+    $wg           = "WHERE g.created >= NOW() - INTERVAL 30 DAY";
+    $period_label = 'Last 30 Days';
+} else {
+    $period       = 0;
+    $w            = "";
+    $wg           = "";
+    $period_label = 'All Time';
+}
 
 // ---- Check if games table exists ----
 $has_games = false;
 try {
     $pdo->query("SELECT 1 FROM games LIMIT 1");
     $has_games = true;
-} catch(Exception $e){}
+} catch (Exception $e) {}
 
-// ---- Queries: scores table (named players) ----
+// ---- Queries: scores table ----
 $totals = $pdo->query("
     SELECT
         COUNT(*)                    AS total_rounds,
@@ -41,6 +62,7 @@ $totals = $pdo->query("
         MIN(created)                AS first_game,
         MAX(created)                AS last_game
     FROM scores
+    $w
 ")->fetch();
 
 $per_player = $pdo->query("
@@ -53,6 +75,7 @@ $per_player = $pdo->query("
         MAX(s.created)       AS last_seen
     FROM scores s
     LEFT JOIN games g ON g.player_id = s.player_id AND s.player_id IS NOT NULL
+    $w
     GROUP BY s.name
     ORDER BY best_score DESC
 ")->fetchAll();
@@ -60,6 +83,7 @@ $per_player = $pdo->query("
 $recent = $pdo->query("
     SELECT name, score, wave, created
     FROM scores
+    $w
     ORDER BY created DESC
     LIMIT 50
 ")->fetchAll();
@@ -67,6 +91,7 @@ $recent = $pdo->query("
 $by_wave = $pdo->query("
     SELECT wave, COUNT(*) AS rounds, ROUND(AVG(score)) AS avg_score, MAX(score) AS top_score
     FROM scores
+    $w
     GROUP BY wave
     ORDER BY wave ASC
 ")->fetchAll();
@@ -74,36 +99,43 @@ $by_wave = $pdo->query("
 $daily = $pdo->query("
     SELECT DATE(created) AS day, COUNT(*) AS rounds, COUNT(DISTINCT name) AS players
     FROM scores
+    $w
     GROUP BY DATE(created)
     ORDER BY day DESC
     LIMIT 30
 ")->fetchAll();
 
-// ---- Queries: games table (all plays including anonymous) ----
-$game_totals   = null;
-$daily_games   = [];
-$recent_games  = [];
-$by_wave_games = [];
-if($has_games){
+// ---- Queries: games table ----
+$game_totals       = null;
+$daily_games       = [];
+$recent_games      = [];
+$by_wave_games     = [];
+$rounds_per_player = [];
+$utm_breakdown     = [];
+
+if ($has_games) {
     $game_totals = $pdo->query("
         SELECT
-            COUNT(*)        AS total_games,
-            SUM(named)      AS named_games,
-            COUNT(*)-SUM(named) AS anon_games,
-            ROUND(AVG(score))   AS avg_score,
-            MAX(wave)           AS max_wave,
-            ROUND(AVG(wave),1)  AS avg_wave,
-            MIN(created)        AS first_game,
-            MAX(created)        AS last_game
+            COUNT(*)                    AS total_games,
+            SUM(named)                  AS named_games,
+            COUNT(*) - SUM(named)       AS anon_games,
+            ROUND(AVG(score))           AS avg_score,
+            MAX(score)                  AS top_score,
+            MAX(wave)                   AS max_wave,
+            ROUND(AVG(wave),1)          AS avg_wave,
+            MIN(created)                AS first_game,
+            MAX(created)                AS last_game
         FROM games
+        $w
     ")->fetch();
 
     $daily_games = $pdo->query("
         SELECT DATE(created) AS day,
-            COUNT(*)            AS total,
-            SUM(named)          AS named,
-            COUNT(*)-SUM(named) AS anon
+            COUNT(*)                AS total,
+            SUM(named)              AS named,
+            COUNT(*) - SUM(named)   AS anon
         FROM games
+        $w
         GROUP BY DATE(created)
         ORDER BY day DESC
         LIMIT 30
@@ -113,10 +145,11 @@ if($has_games){
         SELECT wave,
             COUNT(*) AS total,
             SUM(named) AS named,
-            COUNT(*)-SUM(named) AS anon,
+            COUNT(*) - SUM(named) AS anon,
             ROUND(AVG(score)) AS avg_score,
             MAX(score) AS top_score
         FROM games
+        $w
         GROUP BY wave
         ORDER BY wave ASC
     ")->fetchAll();
@@ -126,231 +159,919 @@ if($has_games){
                s.name
         FROM games g
         LEFT JOIN scores s ON s.player_id = g.player_id AND g.player_id IS NOT NULL
+        $wg
         ORDER BY g.created DESC
         LIMIT 50
     ")->fetchAll();
 
-    // Rounds per known player (all games where player_id is recognisable)
     $rounds_per_player = $pdo->query("
         SELECT s.name,
-               COUNT(g.id)          AS total_rounds,
-               SUM(g.named)         AS named_rounds,
-               COUNT(g.id)-SUM(g.named) AS anon_rounds,
-               MAX(g.score)         AS best_score,
-               MAX(g.wave)          AS best_wave,
-               ROUND(AVG(g.score))  AS avg_score
+               COUNT(g.id)                      AS total_rounds,
+               SUM(g.named)                     AS named_rounds,
+               COUNT(g.id) - SUM(g.named)       AS anon_rounds,
+               MAX(g.score)                     AS best_score,
+               MAX(g.wave)                      AS best_wave,
+               ROUND(AVG(g.score))              AS avg_score
         FROM games g
         JOIN scores s ON s.player_id = g.player_id
+        $wg
         GROUP BY s.player_id, s.name
         ORDER BY total_rounds DESC
     ")->fetchAll();
 
-    // UTM source breakdown (only if column exists)
-    $utm_breakdown = [];
     try {
         $utm_breakdown = $pdo->query("
             SELECT COALESCE(utm, 'direct') AS source,
                 COUNT(*) AS plays,
                 SUM(named) AS named
             FROM games
+            $w
             GROUP BY source
             ORDER BY plays DESC
         ")->fetchAll();
-    } catch(Exception $e){}
+    } catch (Exception $e) {}
 }
-?>
-<!DOCTYPE html>
+
+// ---- Helpers ----
+function fmt($n) {
+    return $n !== null ? number_format((int)$n) : '—';
+}
+function fmtf($n, $decimals = 1) {
+    return $n !== null ? number_format((float)$n, $decimals) : '—';
+}
+function fmtDate($d) {
+    if (!$d) return '—';
+    return date('M j, Y', strtotime($d));
+}
+function fmtTime($d) {
+    if (!$d) return '—';
+    return date('M j, H:i', strtotime($d));
+}
+function utmColor($source) {
+    if ($source === 'direct')                      return '#6b7280';
+    if ($source === 'qr')                          return '#a855f7';
+    if ($source === 'facebook')                    return '#3b82f6';
+    if ($source === 'twitter' || $source === 'x')  return '#1da1f2';
+    if ($source === 'instagram')                   return '#e1306c';
+    if ($source === 'whatsapp')                    return '#25d366';
+    return '#4aaeff';
+}
+
+// ---- Summary values (prefer games table) ----
+$s_total   = $has_games ? (int)($game_totals['total_games'] ?? 0) : (int)($totals['total_rounds']  ?? 0);
+$s_named   = $has_games ? (int)($game_totals['named_games'] ?? 0) : (int)($totals['unique_players'] ?? 0);
+$s_anon    = $has_games ? (int)($game_totals['anon_games']  ?? 0) : 0;
+$s_top     = $has_games ? (int)($game_totals['top_score']   ?? 0) : (int)($totals['top_score'] ?? 0);
+$s_avg     = $has_games ? (int)($game_totals['avg_score']   ?? 0) : (int)($totals['avg_score'] ?? 0);
+$s_topwave = $has_games ? (int)($game_totals['max_wave']    ?? 0) : (int)($totals['max_wave']  ?? 0);
+
+// ---- Date range ----
+$src = ($has_games && $game_totals) ? $game_totals : $totals;
+$range_first = $src ? fmtDate($src['first_game']) : '—';
+$range_last  = $src ? fmtDate($src['last_game'])  : '—';
+
+// ---- Daily chart data ----
+$chart_data    = $has_games ? $daily_games : $daily;
+$chart_data_r  = array_reverse($chart_data);
+$chart_max     = 1;
+foreach ($chart_data as $row) {
+    $v = $has_games ? (int)($row['total'] ?? 0) : (int)($row['rounds'] ?? 0);
+    if ($v > $chart_max) $chart_max = $v;
+}
+
+// ---- UTM totals ----
+$utm_total = 0;
+foreach ($utm_breakdown as $row) $utm_total += (int)$row['plays'];
+if ($utm_total === 0) $utm_total = 1;
+
+// ---- Player/wave/recent row sources ----
+$use_games_players = $has_games && count($rounds_per_player) > 0;
+$player_rows       = $use_games_players ? $rounds_per_player : $per_player;
+$use_games_waves   = $has_games && count($by_wave_games) > 0;
+$wave_rows         = $use_games_waves ? $by_wave_games : $by_wave;
+$use_games_recent  = $has_games && count($recent_games) > 0;
+$recent_rows       = $use_games_recent ? $recent_games : $recent;
+
+?><!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Kipod Barzel – Stats</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kipod Barzel — Stats</title>
 <style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:#0a0e1a;color:#ccd;font-family:system-ui,sans-serif;font-size:14px;padding:24px}
-  h1{color:#4aaeff;font-size:22px;margin-bottom:20px}
-  h2{color:#aac;font-size:14px;text-transform:uppercase;letter-spacing:1px;margin:28px 0 10px}
-  h3{color:#667;font-size:12px;text-transform:uppercase;letter-spacing:.5px;margin:20px 0 8px}
-  .cards{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:8px}
-  .card{background:#111827;border:1px solid #1e2d45;border-radius:8px;padding:14px 20px;min-width:130px}
-  .card .val{font-size:26px;font-weight:900;color:#fff}
-  .card .lbl{font-size:11px;color:#556;margin-top:2px}
-  .card.hi { border-color:#4aaeff44; }
-  .card.hi .val { color:#4aaeff; }
-  table{width:100%;border-collapse:collapse;margin-bottom:8px}
-  th{text-align:left;color:#4aaeff;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:6px 10px;border-bottom:1px solid #1e2d45}
-  td{padding:6px 10px;border-bottom:1px solid #111827;color:#ccd}
-  tr:hover td{background:#111827}
-  .num{text-align:right}
-  .wnb{color:#ffcc44}
-  .anon{color:#888}
-  .named{color:#4aaeff}
-  .sep{border-top:1px solid #1e2d45;margin:32px 0}
-  .note{color:#445;font-size:12px;margin-top:4px}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --bg:       #050510;
+    --bg2:      #0a0e1a;
+    --bg3:      #111827;
+    --border:   #1a2535;
+    --border2:  #253447;
+    --accent:   #4aaeff;
+    --gold:     #ffd700;
+    --text:     #dde4f0;
+    --muted:    #8899b0;
+    --dim:      #3f5068;
+    --success:  #22c55e;
+    --warn:     #f59e0b;
+    --anon:     #4b5a6e;
+    --purple:   #a855f7;
+    --red:      #ef4444;
+}
+
+html { font-size: 15px; }
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    line-height: 1.5;
+    min-height: 100vh;
+}
+
+/* ---- Scrollbar ---- */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ======= HEADER ======= */
+.site-header {
+    position: sticky;
+    top: 0;
+    z-index: 200;
+    height: 56px;
+    background: rgba(5,5,16,0.90);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 0 1.5rem;
+}
+
+.header-brand {
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    white-space: nowrap;
+    flex-shrink: 0;
+    text-decoration: none;
+}
+.header-brand span { color: var(--gold); }
+
+.period-tabs {
+    display: flex;
+    gap: 3px;
+}
+.period-tab {
+    padding: 5px 13px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--muted);
+    text-decoration: none;
+    border: 1px solid transparent;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+.period-tab:hover {
+    color: var(--text);
+    background: var(--bg3);
+    border-color: var(--border2);
+}
+.period-tab.active {
+    color: var(--accent);
+    background: rgba(74,174,255,0.1);
+    border-color: rgba(74,174,255,0.4);
+}
+
+.header-range {
+    margin-left: auto;
+    font-size: 0.75rem;
+    color: var(--dim);
+    white-space: nowrap;
+}
+
+/* ======= LAYOUT ======= */
+.wrap { max-width: 1340px; margin: 0 auto; padding: 1.5rem 1.25rem; }
+
+/* ======= SUMMARY CARDS ======= */
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.85rem;
+    margin-bottom: 1.25rem;
+}
+
+.kpi-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--kpi-color, var(--accent));
+    border-radius: 10px;
+    padding: 1rem 1.1rem 0.85rem;
+    transition: border-color 0.2s, transform 0.15s;
+}
+.kpi-card:hover {
+    border-color: var(--kpi-color, var(--accent));
+    transform: translateY(-1px);
+}
+.kpi-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.35rem;
+}
+.kpi-value {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--kpi-color, var(--text));
+    font-variant-numeric: tabular-nums;
+}
+.kpi-sub {
+    font-size: 0.7rem;
+    color: var(--dim);
+    margin-top: 0.3rem;
+}
+
+/* ======= SECTION / ACCORDION ======= */
+.section {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 0.85rem;
+    overflow: hidden;
+}
+
+.section-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.95rem 1.25rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s;
+    color: inherit;
+}
+.section-toggle:hover { background: rgba(255,255,255,0.025); }
+
+.sec-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
+    background: rgba(74,174,255,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+}
+.sec-title {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--text);
+    flex: 1;
+}
+.sec-badge {
+    font-size: 0.69rem;
+    font-weight: 600;
+    padding: 2px 9px;
+    border-radius: 20px;
+    background: rgba(74,174,255,0.12);
+    color: var(--accent);
+    flex-shrink: 0;
+}
+.chevron {
+    color: var(--dim);
+    font-size: 0.65rem;
+    flex-shrink: 0;
+    transition: transform 0.25s ease;
+}
+.section.is-closed .chevron { transform: rotate(-90deg); }
+
+.section-body {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows 0.3s ease;
+    overflow: hidden;
+}
+.section.is-closed .section-body { grid-template-rows: 0fr; }
+.section-body > div { overflow: hidden; }
+
+.section-inner { padding: 0 1.25rem 1.25rem; }
+
+/* ======= DIVIDER ======= */
+.section-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 0 1.25rem 1.1rem;
+}
+
+/* ======= TABLES ======= */
+.tbl-wrap { overflow-x: auto; }
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.83rem;
+}
+
+thead th {
+    padding: 0.5rem 0.85rem;
+    text-align: left;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    background: transparent;
+}
+thead th.r { text-align: right; }
+thead th.c { text-align: center; }
+
+tbody tr {
+    border-bottom: 1px solid rgba(26,37,53,0.7);
+    transition: background 0.1s;
+}
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: rgba(74,174,255,0.035); }
+
+tbody td {
+    padding: 0.6rem 0.85rem;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+tbody td.r    { text-align: right; }
+tbody td.c    { text-align: center; }
+tbody td.muted { color: var(--muted); }
+tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
+
+.rank-num {
+    color: var(--dim);
+    font-size: 0.78rem;
+    font-variant-numeric: tabular-nums;
+}
+.rank-num.g1 { color: var(--gold); font-weight: 700; }
+.rank-num.g2 { color: #b0b8c8; font-weight: 600; }
+.rank-num.g3 { color: #a07840; font-weight: 600; }
+
+.player-name { font-weight: 600; }
+.score-val {
+    color: var(--accent);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+.gold-val {
+    color: var(--gold);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.wave-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    height: 22px;
+    padding: 0 7px;
+    background: rgba(245,158,11,0.1);
+    color: var(--warn);
+    border-radius: 5px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.anon-label { color: var(--anon); font-style: italic; font-size: 0.8rem; }
+
+.dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+.dot-named { background: var(--success); }
+.dot-anon  { background: var(--anon); }
+
+/* ======= BAR CHART ======= */
+.chart-outer { padding-bottom: 0.5rem; }
+
+.barchart-canvas {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 90px;
+    overflow-x: auto;
+    padding: 0 2px 0;
+}
+.bar-grp {
+    display: flex;
+    align-items: flex-end;
+    gap: 1px;
+    flex-shrink: 0;
+    position: relative;
+}
+.bar {
+    width: 9px;
+    border-radius: 2px 2px 0 0;
+    min-height: 2px;
+}
+.bar-total { background: rgba(74,174,255,0.3); }
+.bar-named { background: rgba(34,197,94,0.7); }
+.bar-anon  { background: rgba(75,90,110,0.65); }
+.bar-plain { background: rgba(74,174,255,0.65); }
+
+.barchart-axis {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    padding: 3px 2px 0;
+}
+.bar-lbl {
+    width: 9px;
+    font-size: 0.55rem;
+    color: var(--dim);
+    text-align: center;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+/* extra space for groups */
+.bar-grp + .bar-grp { margin-left: 0; }
+
+.chart-legend {
+    display: flex;
+    gap: 1.1rem;
+    margin-top: 0.75rem;
+    flex-wrap: wrap;
+}
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.74rem;
+    color: var(--muted);
+}
+.legend-swatch {
+    width: 11px; height: 11px;
+    border-radius: 3px;
+}
+
+/* ======= UTM BARS ======= */
+.utm-bar-bg {
+    height: 5px;
+    background: var(--bg3);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 4px;
+    min-width: 80px;
+}
+.utm-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+}
+.src-label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-weight: 600;
+}
+.src-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* ======= EMPTY ======= */
+.empty-state {
+    text-align: center;
+    color: var(--dim);
+    padding: 2.5rem 1rem;
+    font-size: 0.83rem;
+}
+
+/* ======= FOOTER ======= */
+.site-footer {
+    text-align: center;
+    padding: 2rem 0 1.5rem;
+    font-size: 0.73rem;
+    color: var(--dim);
+}
+
+/* ======= RESPONSIVE ======= */
+@media (max-width: 1100px) {
+    .summary-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 720px) {
+    .site-header { flex-wrap: wrap; height: auto; padding: 0.6rem 1rem; gap: 0.5rem; }
+    .header-range { display: none; }
+    .wrap { padding: 1rem 0.85rem; }
+    .summary-grid { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+    .kpi-value { font-size: 1.5rem; }
+    .bar { width: 6px; }
+    .bar-lbl { width: 6px; }
+}
+@media (max-width: 420px) {
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    .period-tab { padding: 4px 9px; font-size: 0.74rem; }
+}
 </style>
 </head>
 <body>
-<h1>Kipod Barzel — Stats Dashboard</h1>
 
-<?php if($has_games && $game_totals): ?>
-<h2>All Plays (including anonymous)</h2>
-<div class="cards">
-  <div class="card"><div class="val"><?= $game_totals['total_games'] ?></div><div class="lbl">Total Plays</div></div>
-  <div class="card hi"><div class="val"><?= $game_totals['named_games'] ?></div><div class="lbl">Named (leaderboard)</div></div>
-  <div class="card"><div class="val"><?= $game_totals['anon_games'] ?></div><div class="lbl">Anonymous</div></div>
-  <div class="card"><div class="val"><?= number_format($game_totals['avg_score']) ?></div><div class="lbl">Avg Score (all)</div></div>
-  <div class="card"><div class="val"><?= $game_totals['max_wave'] ?></div><div class="lbl">Highest Wave</div></div>
-  <div class="card"><div class="val"><?= $game_totals['avg_wave'] ?></div><div class="lbl">Avg Wave</div></div>
-</div>
-<p class="note">First play: <?= $game_totals['first_game'] ?>  ·  Last play: <?= $game_totals['last_game'] ?></p>
-<?php endif; ?>
+<!-- ======= HEADER ======= -->
+<header class="site-header">
+    <a class="header-brand" href="?period=<?= $period ?>">Kipod <span>Barzel</span> — Stats</a>
+    <nav class="period-tabs">
+        <a href="?period=1"  class="period-tab <?= $period === 1  ? 'active' : '' ?>">Today</a>
+        <a href="?period=7"  class="period-tab <?= $period === 7  ? 'active' : '' ?>">7 days</a>
+        <a href="?period=30" class="period-tab <?= $period === 30 ? 'active' : '' ?>">30 days</a>
+        <a href="?period=0"  class="period-tab <?= $period === 0  ? 'active' : '' ?>">All time</a>
+    </nav>
+    <div class="header-range">
+        <?= htmlspecialchars($period_label) ?>&nbsp;&nbsp;·&nbsp;&nbsp;<?= $range_first ?> – <?= $range_last ?>
+    </div>
+</header>
 
-<div class="sep"></div>
-<h2>Named Players (leaderboard submissions)</h2>
-<div class="cards">
-  <div class="card"><div class="val"><?= $totals['total_rounds'] ?></div><div class="lbl">Total Rounds</div></div>
-  <div class="card"><div class="val"><?= $totals['unique_players'] ?></div><div class="lbl">Unique Players</div></div>
-  <div class="card"><div class="val"><?= number_format($totals['top_score']) ?></div><div class="lbl">Top Score</div></div>
-  <div class="card"><div class="val"><?= number_format($totals['avg_score']) ?></div><div class="lbl">Avg Score</div></div>
-  <div class="card"><div class="val"><?= $totals['max_wave'] ?></div><div class="lbl">Highest Wave</div></div>
-  <div class="card"><div class="val"><?= $totals['avg_wave'] ?></div><div class="lbl">Avg Wave</div></div>
-</div>
-<p class="note">First game: <?= $totals['first_game'] ?>  ·  Last game: <?= $totals['last_game'] ?></p>
+<!-- ======= MAIN ======= -->
+<main class="wrap">
 
-<h3>Per Player</h3>
-<table>
-  <tr><th>#</th><th>Name</th><th class="num">Total Rounds</th><th class="num">Best Score</th><th class="num">Avg Score</th><th class="num">Best Wave</th><th>First Seen</th><th>Last Seen</th></tr>
-  <?php foreach($per_player as $i => $p): ?>
-  <tr>
-    <td style="color:#445"><?= $i+1 ?></td>
-    <td><?= htmlspecialchars($p['name']) ?></td>
-    <td class="num"><?= $p['total_rounds'] ?: '<span class="anon">—</span>' ?></td>
-    <td class="num" style="color:#fff;font-weight:bold"><?= number_format($p['best_score']) ?></td>
-    <td class="num"><?= number_format($p['avg_score']) ?></td>
-    <td class="num wnb"><?= $p['best_wave'] ?></td>
-    <td style="color:#445"><?= $p['first_seen'] ?></td>
-    <td style="color:#445"><?= $p['last_seen'] ?></td>
-  </tr>
-  <?php endforeach; ?>
-</table>
+    <!-- SUMMARY CARDS -->
+    <div class="summary-grid">
+        <div class="kpi-card" style="--kpi-color: var(--accent)">
+            <div class="kpi-label">Total Plays</div>
+            <div class="kpi-value"><?= fmt($s_total) ?></div>
+            <div class="kpi-sub"><?= htmlspecialchars($period_label) ?></div>
+        </div>
+        <div class="kpi-card" style="--kpi-color: var(--success)">
+            <div class="kpi-label">Named</div>
+            <div class="kpi-value"><?= fmt($s_named) ?></div>
+            <div class="kpi-sub"><?= $s_total > 0 ? round(100 * $s_named / $s_total) : 0 ?>% of plays</div>
+        </div>
+        <div class="kpi-card" style="--kpi-color: var(--anon)">
+            <div class="kpi-label">Anonymous</div>
+            <div class="kpi-value" style="color: var(--muted)"><?= fmt($s_anon) ?></div>
+            <div class="kpi-sub"><?= $s_total > 0 ? round(100 * $s_anon / $s_total) : 0 ?>% of plays</div>
+        </div>
+        <div class="kpi-card" style="--kpi-color: var(--gold)">
+            <div class="kpi-label">Top Score</div>
+            <div class="kpi-value" style="color: var(--gold)"><?= fmt($s_top) ?></div>
+            <div class="kpi-sub">all players</div>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #60a5fa">
+            <div class="kpi-label">Avg Score</div>
+            <div class="kpi-value" style="color: #60a5fa"><?= fmt($s_avg) ?></div>
+            <div class="kpi-sub">per game</div>
+        </div>
+        <div class="kpi-card" style="--kpi-color: var(--warn)">
+            <div class="kpi-label">Top Wave</div>
+            <div class="kpi-value" style="color: var(--warn)"><?= fmt($s_topwave) ?></div>
+            <div class="kpi-sub">highest reached</div>
+        </div>
+    </div>
 
-<?php if($has_games && $daily_games): ?>
-<div class="sep"></div>
-<h2>Daily Activity (last 30 days)</h2>
-<table>
-  <tr><th>Date</th><th class="num">Total Plays</th><th class="num named">Named</th><th class="num anon">Anonymous</th></tr>
-  <?php foreach($daily_games as $d): ?>
-  <tr>
-    <td><?= $d['day'] ?></td>
-    <td class="num"><?= $d['total'] ?></td>
-    <td class="num named"><?= $d['named'] ?></td>
-    <td class="num anon"><?= $d['anon'] ?></td>
-  </tr>
-  <?php endforeach; ?>
-</table>
+    <!-- ===== DAILY ACTIVITY ===== -->
+    <div class="section" id="sec-daily">
+        <button class="section-toggle" onclick="toggleSec('sec-daily')">
+            <span class="sec-icon">📈</span>
+            <span class="sec-title">Daily Activity</span>
+            <span class="sec-badge"><?= count($chart_data) ?> days</span>
+            <span class="chevron">&#9660;</span>
+        </button>
+        <div class="section-body"><div>
+        <div class="section-inner">
+            <?php if (count($chart_data) > 0): ?>
+            <!-- Bar chart -->
+            <div class="chart-outer">
+                <div class="barchart-canvas" id="dailyChart">
+                <?php foreach ($chart_data_r as $row):
+                    if ($has_games) {
+                        $total = (int)($row['total'] ?? 0);
+                        $named = (int)($row['named'] ?? 0);
+                        $anon  = (int)($row['anon']  ?? 0);
+                    } else {
+                        $total = (int)($row['rounds'] ?? 0);
+                        $named = 0;
+                        $anon  = 0;
+                    }
+                    $ph_total = $chart_max > 0 ? max(2, round(90 * $total / $chart_max)) : 2;
+                    $ph_named = $chart_max > 0 ? max(2, round(90 * $named / $chart_max)) : 2;
+                    $ph_anon  = $chart_max > 0 ? max(2, round(90 * $anon  / $chart_max)) : 2;
+                    $day_label = isset($row['day']) ? substr($row['day'], 5) : '';
+                ?>
+                    <div class="bar-grp" title="<?= htmlspecialchars($row['day'] ?? '') ?>: <?= $total ?> plays">
+                        <?php if ($has_games): ?>
+                        <div class="bar bar-total" style="height:<?= $ph_total ?>px"></div>
+                        <div class="bar bar-named" style="height:<?= $ph_named ?>px"></div>
+                        <div class="bar bar-anon"  style="height:<?= $ph_anon  ?>px"></div>
+                        <?php else: ?>
+                        <div class="bar bar-plain" style="height:<?= $ph_total ?>px"></div>
+                        <?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
+                </div>
+                <div class="barchart-axis">
+                <?php foreach ($chart_data_r as $row):
+                    $day_label = isset($row['day']) ? substr($row['day'], 5) : '';
+                    $num_bars = $has_games ? 3 : 1;
+                ?>
+                    <?php for ($bi = 0; $bi < $num_bars - 1; $bi++): ?>
+                    <div class="bar-lbl"></div>
+                    <?php endfor; ?>
+                    <div class="bar-lbl"><?= htmlspecialchars($day_label) ?></div>
+                <?php endforeach; ?>
+                </div>
+            </div>
+            <?php if ($has_games): ?>
+            <div class="chart-legend">
+                <div class="legend-item"><div class="legend-swatch" style="background:rgba(74,174,255,0.3)"></div>Total</div>
+                <div class="legend-item"><div class="legend-swatch" style="background:rgba(34,197,94,0.7)"></div>Named</div>
+                <div class="legend-item"><div class="legend-swatch" style="background:rgba(75,90,110,0.65)"></div>Anonymous</div>
+            </div>
+            <?php endif; ?>
 
-<h2>Plays by Wave Reached</h2>
-<table>
-  <tr><th>Wave</th><th class="num">Total Plays</th><th class="num named">Named</th><th class="num anon">Anon</th><th class="num">Avg Score</th><th class="num">Top Score</th></tr>
-  <?php foreach($by_wave_games as $r): ?>
-  <tr>
-    <td class="wnb">Wave <?= $r['wave'] ?></td>
-    <td class="num"><?= $r['total'] ?></td>
-    <td class="num named"><?= $r['named'] ?></td>
-    <td class="num anon"><?= $r['anon'] ?></td>
-    <td class="num"><?= number_format($r['avg_score']) ?></td>
-    <td class="num" style="color:#fff"><?= number_format($r['top_score']) ?></td>
-  </tr>
-  <?php endforeach; ?>
-</table>
+            <hr class="section-divider" style="margin: 1.1rem 0 0.9rem;">
 
-<?php if($utm_breakdown): ?>
-<h2>Traffic Sources</h2>
-<table>
-  <tr><th>Source</th><th class="num">Plays</th><th class="num named">Named</th></tr>
-  <?php foreach($utm_breakdown as $r): ?>
-  <tr>
-    <td><?= htmlspecialchars($r['source']) ?></td>
-    <td class="num"><?= $r['plays'] ?></td>
-    <td class="num named"><?= $r['named'] ?></td>
-  </tr>
-  <?php endforeach; ?>
-</table>
-<?php endif; ?>
+            <div class="tbl-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th class="r">Plays</th>
+                            <?php if ($has_games): ?>
+                            <th class="r">Named</th>
+                            <th class="r">Anon</th>
+                            <?php else: ?>
+                            <th class="r">Players</th>
+                            <?php endif; ?>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($chart_data as $row): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($row['day'] ?? '') ?></td>
+                            <?php if ($has_games): ?>
+                            <td class="r score-val"><?= fmt($row['total']) ?></td>
+                            <td class="r" style="color:var(--success)"><?= fmt($row['named']) ?></td>
+                            <td class="r muted"><?= fmt($row['anon']) ?></td>
+                            <?php else: ?>
+                            <td class="r score-val"><?= fmt($row['rounds']) ?></td>
+                            <td class="r muted"><?= fmt($row['players']) ?></td>
+                            <?php endif; ?>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php else: ?>
+            <div class="empty-state">No daily data available yet.</div>
+            <?php endif; ?>
+        </div>
+        </div></div>
+    </div>
 
-<?php if($rounds_per_player): ?>
-<h2>Rounds per Known Player</h2>
-<p class="note">Players identified by device ID — counts all their games, not just leaderboard submissions.</p>
-<table>
-  <tr><th>#</th><th>Name</th><th class="num">Total Rounds</th><th class="num named">Named</th><th class="num anon">Anon</th><th class="num">Best Score</th><th class="num">Avg Score</th><th class="num wnb">Best Wave</th></tr>
-  <?php foreach($rounds_per_player as $i => $p): ?>
-  <tr>
-    <td style="color:#445"><?= $i+1 ?></td>
-    <td class="named"><?= htmlspecialchars($p['name']) ?></td>
-    <td class="num" style="color:#fff;font-weight:bold"><?= $p['total_rounds'] ?></td>
-    <td class="num named"><?= $p['named_rounds'] ?></td>
-    <td class="num anon"><?= $p['anon_rounds'] ?></td>
-    <td class="num" style="color:#fff"><?= number_format($p['best_score']) ?></td>
-    <td class="num"><?= number_format($p['avg_score']) ?></td>
-    <td class="num wnb"><?= $p['best_wave'] ?></td>
-  </tr>
-  <?php endforeach; ?>
-</table>
-<?php endif; ?>
+    <!-- ===== TRAFFIC SOURCES ===== -->
+    <?php if ($has_games && count($utm_breakdown) > 0): ?>
+    <div class="section" id="sec-utm">
+        <button class="section-toggle" onclick="toggleSec('sec-utm')">
+            <span class="sec-icon">🔗</span>
+            <span class="sec-title">Traffic Sources</span>
+            <span class="sec-badge"><?= count($utm_breakdown) ?> sources</span>
+            <span class="chevron">&#9660;</span>
+        </button>
+        <div class="section-body"><div>
+        <div class="section-inner">
+            <div class="tbl-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Source</th>
+                            <th class="r">Plays</th>
+                            <th class="r">Named</th>
+                            <th class="r">Anon</th>
+                            <th class="r">Share</th>
+                            <th style="min-width:140px; padding-left:1rem">Bar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($utm_breakdown as $row):
+                        $src_name = htmlspecialchars($row['source']);
+                        $plays    = (int)$row['plays'];
+                        $named    = (int)$row['named'];
+                        $anon     = $plays - $named;
+                        $pct      = round(100 * $plays / $utm_total, 1);
+                        $color    = utmColor($row['source']);
+                    ?>
+                        <tr>
+                            <td>
+                                <span class="src-label">
+                                    <span class="src-dot" style="background:<?= $color ?>"></span>
+                                    <?= $src_name ?>
+                                </span>
+                            </td>
+                            <td class="r score-val"><?= fmt($plays) ?></td>
+                            <td class="r" style="color:var(--success)"><?= fmt($named) ?></td>
+                            <td class="r muted"><?= fmt($anon) ?></td>
+                            <td class="r muted"><?= $pct ?>%</td>
+                            <td style="padding-left:1rem">
+                                <div class="utm-bar-bg">
+                                    <div class="utm-bar-fill" style="width:<?= $pct ?>%;background:<?= $color ?>"></div>
+                                </div>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        </div></div>
+    </div>
+    <?php endif; ?>
 
-<h2>Recent Plays (last 50)</h2>
-<table>
-  <tr><th>Time</th><th>Name</th><th class="num">Score</th><th class="num">Wave</th></tr>
-  <?php foreach($recent_games as $r): ?>
-  <tr>
-    <td style="color:#445"><?= $r['created'] ?></td>
-    <td><?= $r['name'] ? '<span class="named">'.htmlspecialchars($r['name']).'</span>' : '<span class="anon">anonymous</span>' ?></td>
-    <td class="num" style="color:#fff"><?= number_format($r['score']) ?></td>
-    <td class="num wnb"><?= $r['wave'] ?></td>
-  </tr>
-  <?php endforeach; ?>
-</table>
+    <!-- ===== PLAYERS ===== -->
+    <div class="section" id="sec-players">
+        <button class="section-toggle" onclick="toggleSec('sec-players')">
+            <span class="sec-icon">👤</span>
+            <span class="sec-title">Players</span>
+            <span class="sec-badge"><?= count($player_rows) ?> players</span>
+            <span class="chevron">&#9660;</span>
+        </button>
+        <div class="section-body"><div>
+        <div class="section-inner">
+            <?php if (count($player_rows) > 0): ?>
+            <div class="tbl-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:36px">#</th>
+                            <th>Player</th>
+                            <th class="r">Rounds</th>
+                            <?php if ($use_games_players): ?>
+                            <th class="r">Named</th>
+                            <th class="r">Anon</th>
+                            <?php endif; ?>
+                            <th class="r">Best Score</th>
+                            <th class="r">Avg Score</th>
+                            <th class="c">Best Wave</th>
+                            <?php if (!$use_games_players): ?>
+                            <th>First Seen</th>
+                            <th>Last Seen</th>
+                            <?php endif; ?>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($player_rows as $i => $row):
+                        $rank = $i + 1;
+                        $rk   = $rank === 1 ? 'g1' : ($rank === 2 ? 'g2' : ($rank === 3 ? 'g3' : ''));
+                    ?>
+                        <tr>
+                            <td><span class="rank-num <?= $rk ?>"><?= $rank ?></span></td>
+                            <td class="player-name"><?= htmlspecialchars($row['name'] ?? '—') ?></td>
+                            <td class="r score-val"><?= fmt($row['total_rounds'] ?? 0) ?></td>
+                            <?php if ($use_games_players): ?>
+                            <td class="r" style="color:var(--success)"><?= fmt($row['named_rounds'] ?? 0) ?></td>
+                            <td class="r muted"><?= fmt($row['anon_rounds'] ?? 0) ?></td>
+                            <?php endif; ?>
+                            <td class="r gold-val"><?= fmt($row['best_score'] ?? 0) ?></td>
+                            <td class="r muted"><?= fmt($row['avg_score'] ?? 0) ?></td>
+                            <td class="c"><span class="wave-pill"><?= (int)($row['best_wave'] ?? 0) ?></span></td>
+                            <?php if (!$use_games_players): ?>
+                            <td class="dim"><?= fmtDate($row['first_seen'] ?? '') ?></td>
+                            <td class="dim"><?= fmtDate($row['last_seen'] ?? '') ?></td>
+                            <?php endif; ?>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php else: ?>
+            <div class="empty-state">No player data available yet.</div>
+            <?php endif; ?>
+        </div>
+        </div></div>
+    </div>
 
-<?php else: ?>
-<div class="sep"></div>
-<h2>Rounds by Wave Reached (named only)</h2>
-<table>
-  <tr><th>Wave</th><th class="num">Rounds ended here</th><th class="num">Avg Score</th><th class="num">Top Score</th></tr>
-  <?php foreach($by_wave as $r): ?>
-  <tr>
-    <td class="wnb">Wave <?= $r['wave'] ?></td>
-    <td class="num"><?= $r['rounds'] ?></td>
-    <td class="num"><?= number_format($r['avg_score']) ?></td>
-    <td class="num" style="color:#fff"><?= number_format($r['top_score']) ?></td>
-  </tr>
-  <?php endforeach; ?>
-</table>
+    <!-- ===== WAVE ANALYSIS ===== -->
+    <div class="section" id="sec-waves">
+        <button class="section-toggle" onclick="toggleSec('sec-waves')">
+            <span class="sec-icon">🌊</span>
+            <span class="sec-title">Wave Analysis</span>
+            <span class="sec-badge"><?= count($wave_rows) ?> waves</span>
+            <span class="chevron">&#9660;</span>
+        </button>
+        <div class="section-body"><div>
+        <div class="section-inner">
+            <?php if (count($wave_rows) > 0): ?>
+            <div class="tbl-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Wave</th>
+                            <th class="r">Games</th>
+                            <?php if ($use_games_waves): ?>
+                            <th class="r">Named</th>
+                            <th class="r">Anon</th>
+                            <?php endif; ?>
+                            <th class="r">Avg Score</th>
+                            <th class="r">Top Score</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($wave_rows as $row):
+                        $gc = $use_games_waves ? (int)($row['total'] ?? 0) : (int)($row['rounds'] ?? 0);
+                    ?>
+                        <tr>
+                            <td><span class="wave-pill"><?= (int)($row['wave'] ?? 0) ?></span></td>
+                            <td class="r score-val"><?= fmt($gc) ?></td>
+                            <?php if ($use_games_waves): ?>
+                            <td class="r" style="color:var(--success)"><?= fmt($row['named'] ?? 0) ?></td>
+                            <td class="r muted"><?= fmt($row['anon'] ?? 0) ?></td>
+                            <?php endif; ?>
+                            <td class="r muted"><?= fmt($row['avg_score'] ?? 0) ?></td>
+                            <td class="r gold-val"><?= fmt($row['top_score'] ?? 0) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php else: ?>
+            <div class="empty-state">No wave data available yet.</div>
+            <?php endif; ?>
+        </div>
+        </div></div>
+    </div>
 
-<h2>Daily Activity — named only (last 30 days)</h2>
-<table>
-  <tr><th>Date</th><th class="num">Rounds</th><th class="num">Players</th></tr>
-  <?php foreach($daily as $d): ?>
-  <tr>
-    <td><?= $d['day'] ?></td>
-    <td class="num"><?= $d['rounds'] ?></td>
-    <td class="num"><?= $d['players'] ?></td>
-  </tr>
-  <?php endforeach; ?>
-</table>
+    <!-- ===== RECENT PLAYS ===== -->
+    <div class="section" id="sec-recent">
+        <button class="section-toggle" onclick="toggleSec('sec-recent')">
+            <span class="sec-icon">🕐</span>
+            <span class="sec-title">Recent Plays</span>
+            <span class="sec-badge"><?= count($recent_rows) ?> entries</span>
+            <span class="chevron">&#9660;</span>
+        </button>
+        <div class="section-body"><div>
+        <div class="section-inner">
+            <?php if (count($recent_rows) > 0): ?>
+            <div class="tbl-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Player</th>
+                            <th class="r">Score</th>
+                            <th class="c">Wave</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($recent_rows as $row):
+                        $is_named = $use_games_recent ? (bool)($row['named'] ?? false) : true;
+                        $name     = $row['name'] ?? null;
+                    ?>
+                        <tr>
+                            <td>
+                                <span class="dot <?= $is_named ? 'dot-named' : 'dot-anon' ?>"></span>
+                                <?php if ($name): ?>
+                                    <span class="player-name"><?= htmlspecialchars($name) ?></span>
+                                <?php else: ?>
+                                    <span class="anon-label">anonymous</span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="r score-val"><?= fmt($row['score'] ?? 0) ?></td>
+                            <td class="c"><span class="wave-pill"><?= (int)($row['wave'] ?? 0) ?></span></td>
+                            <td class="dim"><?= fmtTime($row['created'] ?? '') ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php else: ?>
+            <div class="empty-state">No recent plays yet.</div>
+            <?php endif; ?>
+        </div>
+        </div></div>
+    </div>
 
-<h2>Recent Named Rounds (last 50)</h2>
-<table>
-  <tr><th>Time</th><th>Name</th><th class="num">Score</th><th class="num">Wave</th></tr>
-  <?php foreach($recent as $r): ?>
-  <tr>
-    <td style="color:#445"><?= $r['created'] ?></td>
-    <td><?= htmlspecialchars($r['name']) ?></td>
-    <td class="num" style="color:#fff"><?= number_format($r['score']) ?></td>
-    <td class="num wnb"><?= $r['wave'] ?></td>
-  </tr>
-  <?php endforeach; ?>
-</table>
-<?php endif; ?>
+    <div class="site-footer">
+        Kipod Barzel Stats &nbsp;·&nbsp; Generated <?= date('Y-m-d H:i:s') ?>
+    </div>
+
+</main>
+
+<script>
+function toggleSec(id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.toggle('is-closed');
+}
+</script>
 
 </body>
 </html>
