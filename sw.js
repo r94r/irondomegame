@@ -3,8 +3,8 @@
 // Other assets: cache-first
 // API calls: network only
 
-const CACHE = 'irondome-v3';
-const ASSETS = ['./', './manifest.json'];
+const CACHE = 'irondome-v4';
+const ASSETS = ['./manifest.json']; // index.html not cached — always fetched from network
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
@@ -24,18 +24,10 @@ self.addEventListener('fetch', e => {
   // API calls: network only (never cache)
   if(e.request.url.includes('api.php')) return;
 
-  // Navigation (index.html): network-first with 3s timeout, fall back to cache
-  // This ensures poor signal falls back to cached version quickly instead of hanging
+  // Navigation (index.html): always fetch from network, never cache.
+  // No timeout — waits as long as needed so slow connections never fall back to stale content.
   if(e.request.mode === 'navigate'){
-    e.respondWith(
-      Promise.race([
-        fetch(e.request).then(res => {
-          caches.open(CACHE).then(c => c.put(e.request, res.clone()));
-          return res;
-        }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('sw-timeout')), 3000))
-      ]).catch(() => caches.match(e.request))
-    );
+    e.respondWith(fetch(e.request));
     return;
   }
 
