@@ -2118,6 +2118,15 @@ const G = {
       if(e.key==='2') this.selectType('david');
       if(e.key==='3') this.selectType('arrow');
     });
+
+    // pointerdown fires instantly on first contact (no 300ms delay) and
+    // stopPropagation prevents the canvas touch handler from also firing
+    [['btn-irondome','irondome'],['btn-david','david'],['btn-arrow','arrow']].forEach(([id,type])=>{
+      document.getElementById(id).addEventListener('pointerdown',e=>{
+        e.stopPropagation();
+        this.selectType(type);
+      });
+    });
   },
 
   _fire(tx,ty){

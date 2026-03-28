@@ -3,7 +3,7 @@
 // Other assets: cache-first
 // API calls: network only
 
-const CACHE = 'irondome-v2';
+const CACHE = 'irondome-v3';
 const ASSETS = ['./', './manifest.json'];
 
 self.addEventListener('install', e => {
