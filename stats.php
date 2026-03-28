@@ -112,6 +112,7 @@ $recent_games      = [];
 $by_wave_games     = [];
 $rounds_per_player = [];
 $utm_breakdown     = [];
+$visit_breakdown   = [];
 
 if ($has_games) {
     $game_totals = $pdo->query("
@@ -155,7 +156,7 @@ if ($has_games) {
     ")->fetchAll();
 
     $recent_games = $pdo->query("
-        SELECT g.score, g.wave, g.named, g.created,
+        SELECT g.score, g.wave, g.named, g.created, g.utm,
                s.name
         FROM games g
         LEFT JOIN scores s ON s.player_id = g.player_id AND g.player_id IS NOT NULL
@@ -176,8 +177,21 @@ if ($has_games) {
         JOIN scores s ON s.player_id = g.player_id
         $wg
         GROUP BY s.player_id, s.name
-        ORDER BY total_rounds DESC
+        ORDER BY best_score DESC
     ")->fetchAll();
+
+    // Visit pings (page loads with UTM, before game starts)
+    try {
+        $visit_breakdown = $pdo->query("
+            SELECT utm AS source,
+                COUNT(*) AS visits,
+                COUNT(DISTINCT player_id) AS unique_visitors
+            FROM visits
+            $w
+            GROUP BY utm
+            ORDER BY visits DESC
+        ")->fetchAll();
+    } catch(Exception $e){}
 
     try {
         $utm_breakdown = $pdo->query("
@@ -338,6 +352,21 @@ body {
     white-space: nowrap;
 }
 .period-tab:hover {
+    color: var(--text);
+    background: var(--bg3);
+    border-color: var(--border2);
+}
+.player-limit-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    padding: 4px 12px;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.player-limit-btn:hover {
     color: var(--text);
     background: var(--bg3);
     border-color: var(--border2);
@@ -551,6 +580,7 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
     font-variant-numeric: tabular-nums;
 }
 .anon-label { color: var(--anon); font-style: italic; font-size: 0.8rem; }
+.utm-tag { margin-left: 5px; font-size: 0.72rem; color: var(--muted); background: var(--bg3); border-radius: 4px; padding: 1px 5px; }
 
 .dot {
     display: inline-block;
@@ -700,7 +730,7 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
     <div class="header-range">
         <?= htmlspecialchars($period_label) ?>&nbsp;&nbsp;·&nbsp;&nbsp;<?= $range_first ?> – <?= $range_last ?>
     </div>
-    <button id="toggle-all-btn" onclick="toggleAll()" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:0.78rem;padding:4px 12px;cursor:pointer;white-space:nowrap">Close All</button>
+    <button id="toggle-all-btn" onclick="toggleAll()" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:0.78rem;padding:4px 12px;cursor:pointer;white-space:nowrap">Open All</button>
 </header>
 
 <!-- ======= MAIN ======= -->
@@ -741,7 +771,7 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
     </div>
 
     <!-- ===== DAILY ACTIVITY ===== -->
-    <div class="section" id="sec-daily">
+    <div class="section is-closed" id="sec-daily">
         <button class="section-toggle" onclick="toggleSec('sec-daily')">
             <span class="sec-icon">📈</span>
             <span class="sec-title">Daily Activity</span>
@@ -842,7 +872,7 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
 
     <!-- ===== TRAFFIC SOURCES ===== -->
     <?php if ($has_games && count($utm_breakdown) > 0): ?>
-    <div class="section" id="sec-utm">
+    <div class="section is-closed" id="sec-utm">
         <button class="section-toggle" onclick="toggleSec('sec-utm')">
             <span class="sec-icon">🔗</span>
             <span class="sec-title">Traffic Sources</span>
@@ -853,24 +883,40 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
         <div class="section-inner">
             <div class="tbl-wrap">
                 <table>
+                    <?php
+                    // Build visit lookup keyed by source
+                    $visit_map = [];
+                    foreach($visit_breakdown as $vr) $visit_map[$vr['source']] = $vr;
+                    $has_visits = count($visit_breakdown) > 0;
+                    ?>
                     <thead>
                         <tr>
                             <th>Source</th>
+                            <?php if($has_visits): ?>
+                            <th class="r">Scans</th>
+                            <th class="r">Unique</th>
+                            <?php endif; ?>
                             <th class="r">Plays</th>
                             <th class="r">Named</th>
-                            <th class="r">Anon</th>
+                            <?php if($has_visits): ?>
+                            <th class="r">Conversion</th>
+                            <?php endif; ?>
                             <th class="r">Share</th>
-                            <th style="min-width:140px; padding-left:1rem">Bar</th>
+                            <th style="min-width:120px; padding-left:1rem">Bar</th>
                         </tr>
                     </thead>
                     <tbody>
                     <?php foreach ($utm_breakdown as $row):
-                        $src_name = htmlspecialchars($row['source']);
+                        $src      = $row['source'];
+                        $src_name = htmlspecialchars($src);
                         $plays    = (int)$row['plays'];
                         $named    = (int)$row['named'];
-                        $anon     = $plays - $named;
                         $pct      = round(100 * $plays / $utm_total, 1);
-                        $color    = utmColor($row['source']);
+                        $color    = utmColor($src);
+                        $vr       = $visit_map[$src] ?? null;
+                        $scans    = $vr ? (int)$vr['visits'] : null;
+                        $uniq     = $vr ? (int)$vr['unique_visitors'] : null;
+                        $conv     = ($scans && $scans > 0) ? round(100 * $plays / $scans) : null;
                     ?>
                         <tr>
                             <td>
@@ -879,9 +925,17 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
                                     <?= $src_name ?>
                                 </span>
                             </td>
+                            <?php if($has_visits): ?>
+                            <td class="r score-val"><?= $scans !== null ? fmt($scans) : '<span class="muted">—</span>' ?></td>
+                            <td class="r muted"><?= $uniq  !== null ? fmt($uniq)  : '<span class="muted">—</span>' ?></td>
+                            <?php endif; ?>
                             <td class="r score-val"><?= fmt($plays) ?></td>
                             <td class="r" style="color:var(--success)"><?= fmt($named) ?></td>
-                            <td class="r muted"><?= fmt($anon) ?></td>
+                            <?php if($has_visits): ?>
+                            <td class="r" style="color:<?= $conv !== null && $conv >= 50 ? 'var(--gold)' : 'var(--muted)' ?>">
+                                <?= $conv !== null ? $conv.'%' : '<span class="muted">—</span>' ?>
+                            </td>
+                            <?php endif; ?>
                             <td class="r muted"><?= $pct ?>%</td>
                             <td style="padding-left:1rem">
                                 <div class="utm-bar-bg">
@@ -899,7 +953,7 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
     <?php endif; ?>
 
     <!-- ===== PLAYERS ===== -->
-    <div class="section" id="sec-players">
+    <div class="section is-closed" id="sec-players">
         <button class="section-toggle" onclick="toggleSec('sec-players')">
             <span class="sec-icon">👤</span>
             <span class="sec-title">Players</span>
@@ -911,8 +965,7 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
             <?php if (count($player_rows) > 0): ?>
             <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
                 <?php foreach([10,20,40,0] as $n): ?>
-                <button class="player-limit-btn" data-n="<?= $n ?>" onclick="setPlayerLimit(<?= $n ?>)"
-                    style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:0.78rem;padding:4px 12px;cursor:pointer">
+                <button class="player-limit-btn" data-n="<?= $n ?>" onclick="setPlayerLimit(<?= $n ?>)">
                     <?= $n === 0 ? 'All' : 'Top '.$n ?>
                 </button>
                 <?php endforeach; ?>
@@ -970,8 +1023,61 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
         </div></div>
     </div>
 
+    <!-- ===== RECENT PLAYS ===== -->
+    <div class="section is-closed" id="sec-recent">
+        <button class="section-toggle" onclick="toggleSec('sec-recent')">
+            <span class="sec-icon">🕐</span>
+            <span class="sec-title">Recent Plays</span>
+            <span class="sec-badge"><?= count($recent_rows) ?> entries</span>
+            <span class="chevron">&#9660;</span>
+        </button>
+        <div class="section-body"><div>
+        <div class="section-inner">
+            <?php if (count($recent_rows) > 0): ?>
+            <div class="tbl-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Player</th>
+                            <th class="r">Score</th>
+                            <th class="c">Wave</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($recent_rows as $row):
+                        $is_named = $use_games_recent ? (bool)($row['named'] ?? false) : true;
+                        $name     = $row['name'] ?? null;
+                    ?>
+                        <tr>
+                            <td>
+                                <span class="dot <?= $is_named ? 'dot-named' : 'dot-anon' ?>"></span>
+                                <?php if ($name): ?>
+                                    <span class="player-name"><?= htmlspecialchars($name) ?></span>
+                                <?php else: ?>
+                                    <span class="anon-label">anonymous</span>
+                                <?php endif; ?>
+                                <?php if (!empty($row['utm'])): ?>
+                                    <span class="utm-tag"><?= htmlspecialchars($row['utm']) ?></span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="r score-val"><?= fmt($row['score'] ?? 0) ?></td>
+                            <td class="c"><span class="wave-pill"><?= (int)($row['wave'] ?? 0) ?></span></td>
+                            <td class="dim"><?= fmtTime($row['created'] ?? '') ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php else: ?>
+            <div class="empty-state">No recent plays yet.</div>
+            <?php endif; ?>
+        </div>
+        </div></div>
+    </div>
+
     <!-- ===== WAVE ANALYSIS ===== -->
-    <div class="section" id="sec-waves">
+    <div class="section is-closed" id="sec-waves">
         <button class="section-toggle" onclick="toggleSec('sec-waves')">
             <span class="sec-icon">🌊</span>
             <span class="sec-title">Wave Analysis</span>
@@ -1020,56 +1126,6 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
         </div></div>
     </div>
 
-    <!-- ===== RECENT PLAYS ===== -->
-    <div class="section" id="sec-recent">
-        <button class="section-toggle" onclick="toggleSec('sec-recent')">
-            <span class="sec-icon">🕐</span>
-            <span class="sec-title">Recent Plays</span>
-            <span class="sec-badge"><?= count($recent_rows) ?> entries</span>
-            <span class="chevron">&#9660;</span>
-        </button>
-        <div class="section-body"><div>
-        <div class="section-inner">
-            <?php if (count($recent_rows) > 0): ?>
-            <div class="tbl-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Player</th>
-                            <th class="r">Score</th>
-                            <th class="c">Wave</th>
-                            <th>Time</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    <?php foreach ($recent_rows as $row):
-                        $is_named = $use_games_recent ? (bool)($row['named'] ?? false) : true;
-                        $name     = $row['name'] ?? null;
-                    ?>
-                        <tr>
-                            <td>
-                                <span class="dot <?= $is_named ? 'dot-named' : 'dot-anon' ?>"></span>
-                                <?php if ($name): ?>
-                                    <span class="player-name"><?= htmlspecialchars($name) ?></span>
-                                <?php else: ?>
-                                    <span class="anon-label">anonymous</span>
-                                <?php endif; ?>
-                            </td>
-                            <td class="r score-val"><?= fmt($row['score'] ?? 0) ?></td>
-                            <td class="c"><span class="wave-pill"><?= (int)($row['wave'] ?? 0) ?></span></td>
-                            <td class="dim"><?= fmtTime($row['created'] ?? '') ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-            <?php else: ?>
-            <div class="empty-state">No recent plays yet.</div>
-            <?php endif; ?>
-        </div>
-        </div></div>
-    </div>
-
     <div class="site-footer">
         Kipod Barzel Stats &nbsp;·&nbsp; Generated <?= date('Y-m-d H:i:s') ?>
     </div>
@@ -1083,7 +1139,7 @@ function toggleSec(id) {
 }
 
 // Open / Close all
-var _allOpen = true;
+var _allOpen = false;
 function toggleAll() {
     _allOpen = !_allOpen;
     document.querySelectorAll('.section').forEach(function(s) {

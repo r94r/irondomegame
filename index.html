@@ -2437,6 +2437,16 @@ if('serviceWorker' in navigator){
   navigator.serviceWorker.register('./sw.js').catch(()=>{});
 }
 
+// ---- Visit ping: fire once per session when UTM is present ----
+if(getUtm() && !sessionStorage.getItem('visit_pinged')){
+  sessionStorage.setItem('visit_pinged','1');
+  fetch(API_URL + '?visit=1', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({utm: getUtm(), player_id: getPlayerId()})
+  }).catch(()=>{});
+}
+
 // ---- Boot ----
 resize();
 G.init();

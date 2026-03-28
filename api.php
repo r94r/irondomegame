@@ -85,6 +85,16 @@ if(!$cols){
     $pdo->exec("ALTER TABLE scores ADD COLUMN game_id INT DEFAULT NULL");
 }
 
+// ---- Auto-create visits table ----
+$pdo->exec("CREATE TABLE IF NOT EXISTS visits (
+    id        INT AUTO_INCREMENT PRIMARY KEY,
+    utm       VARCHAR(32) NOT NULL,
+    player_id VARCHAR(64) DEFAULT NULL,
+    created   DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_utm (utm),
+    INDEX idx_created (created)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
 // ---- Auto-migrate: add utm column to games if not yet present ----
 $cols = $pdo->query("SHOW COLUMNS FROM games LIKE 'utm'")->fetchAll();
 if(!$cols){
@@ -142,6 +152,18 @@ if($_SERVER['REQUEST_METHOD'] === 'GET'){
 
 if($_SERVER['REQUEST_METHOD'] === 'POST'){
     $body = json_decode(file_get_contents('php://input'), true);
+
+    // ---- POST ?visit=1 → log a UTM page visit (scan/click before game starts) ----
+    if(isset($_GET['visit'])){
+        $utm = preg_replace('/[^a-z0-9]/', '', strtolower(trim($body['utm'] ?? '')));
+        $utm = substr($utm, 0, 32);
+        if(!$utm){ http_response_code(400); echo json_encode(['error'=>'missing utm']); exit; }
+        $pid = preg_replace('/[^a-zA-Z0-9_-]/', '', trim($body['player_id'] ?? ''));
+        $pid = substr($pid, 0, 64) ?: null;
+        $pdo->prepare("INSERT INTO visits (utm, player_id) VALUES (?, ?)")->execute([$utm, $pid]);
+        echo json_encode(['ok' => true]);
+        exit;
+    }
 
     // ---- POST ?game=1 → create or update a game row ----
     if(isset($_GET['game'])){
