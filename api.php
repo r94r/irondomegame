@@ -133,9 +133,9 @@ if(isset($_GET['setup'])){
     exit;
 }
 
-// ---- GET /api.php  → top 15 scores ----
+// ---- GET /api.php  → top 20 scores ----
 if($_SERVER['REQUEST_METHOD'] === 'GET'){
-    $stmt = $pdo->query("SELECT name, score, wave FROM scores ORDER BY score DESC LIMIT 15");
+    $stmt = $pdo->query("SELECT name, score, wave FROM scores ORDER BY score DESC LIMIT 20");
     echo json_encode($stmt->fetchAll());
     exit;
 }

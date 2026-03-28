@@ -3,7 +3,7 @@
 // Other assets: cache-first
 // API calls: network only
 
-const CACHE = 'irondome-v4';
+const CACHE = 'irondome-v5';
 const ASSETS = ['./manifest.json']; // index.html not cached — always fetched from network
 
 self.addEventListener('install', e => {

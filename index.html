@@ -253,6 +253,9 @@ body {
 #lb-list {
   width:100%; margin-top:12px;
   display:flex; flex-direction:column; gap:5px;
+  max-height:min(320px, calc(100dvh - 220px));
+  overflow-y:auto;
+  scrollbar-width:thin; scrollbar-color:#334 transparent;
 }
 .lb-row {
   display:grid; grid-template-columns:28px 1fr auto auto;
@@ -681,7 +684,7 @@ body {
 
 <!-- ---- Leaderboard ---- -->
 <div id="leaderboard-modal" class="modal-overlay" style="display:none">
-  <div class="modal-box" style="min-width:280px;max-width:360px">
+  <div class="modal-box" style="min-width:280px;max-width:360px;max-height:calc(100dvh - 40px);overflow-y:auto">
     <div class="modal-icon">🏆</div>
     <h2 class="modal-title" id="lb-title">LEADERBOARD</h2>
     <div id="lb-list"></div>
@@ -1004,8 +1007,8 @@ const LB = {
     const local = parseInt(localStorage.getItem('id_hiscore')||'0');
     if(score > local) localStorage.setItem('id_hiscore', score);
     if(score <= 0) return;
-    // Only prompt if score would actually make the top 15
-    if(this._lbCount >= 15 && score <= this._minScore) return;
+    // Only prompt if score would actually make the top 20
+    if(this._lbCount >= 20 && score <= this._minScore) return;
     this._pending = {score, wave};
     document.getElementById('hs-score-display').textContent = score.toLocaleString();
     document.getElementById('hs-name-input').value = localStorage.getItem('id_lastname')||'';
