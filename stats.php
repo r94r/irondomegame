@@ -342,7 +342,7 @@ body {
     background: var(--bg3);
     border-color: var(--border2);
 }
-.period-tab.active {
+.period-tab.active, .player-limit-btn.active {
     color: var(--accent);
     background: rgba(74,174,255,0.1);
     border-color: rgba(74,174,255,0.4);
@@ -700,6 +700,7 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
     <div class="header-range">
         <?= htmlspecialchars($period_label) ?>&nbsp;&nbsp;·&nbsp;&nbsp;<?= $range_first ?> – <?= $range_last ?>
     </div>
+    <button id="toggle-all-btn" onclick="toggleAll()" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:0.78rem;padding:4px 12px;cursor:pointer;white-space:nowrap">Close All</button>
 </header>
 
 <!-- ======= MAIN ======= -->
@@ -908,6 +909,15 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
         <div class="section-body"><div>
         <div class="section-inner">
             <?php if (count($player_rows) > 0): ?>
+            <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+                <?php foreach([10,20,40,0] as $n): ?>
+                <button class="player-limit-btn" data-n="<?= $n ?>" onclick="setPlayerLimit(<?= $n ?>)"
+                    style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:0.78rem;padding:4px 12px;cursor:pointer">
+                    <?= $n === 0 ? 'All' : 'Top '.$n ?>
+                </button>
+                <?php endforeach; ?>
+                <span style="color:var(--muted);font-size:0.78rem;line-height:2;margin-left:4px"><?= count($player_rows) ?> total</span>
+            </div>
             <div class="tbl-wrap">
                 <table>
                     <thead>
@@ -928,7 +938,7 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
                             <?php endif; ?>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="players-tbody">
                     <?php foreach ($player_rows as $i => $row):
                         $rank = $i + 1;
                         $rk   = $rank === 1 ? 'g1' : ($rank === 2 ? 'g2' : ($rank === 3 ? 'g3' : ''));
@@ -1071,6 +1081,30 @@ function toggleSec(id) {
     var el = document.getElementById(id);
     if (el) el.classList.toggle('is-closed');
 }
+
+// Open / Close all
+var _allOpen = true;
+function toggleAll() {
+    _allOpen = !_allOpen;
+    document.querySelectorAll('.section').forEach(function(s) {
+        s.classList.toggle('is-closed', !_allOpen);
+    });
+    document.getElementById('toggle-all-btn').textContent = _allOpen ? 'Close All' : 'Open All';
+}
+
+// Players pagination
+var _playerLimit = 10;
+function setPlayerLimit(n) {
+    _playerLimit = n;
+    document.querySelectorAll('.player-limit-btn').forEach(function(b) {
+        b.classList.toggle('active', b.dataset.n == n);
+    });
+    var rows = document.querySelectorAll('#players-tbody tr');
+    rows.forEach(function(r, i) {
+        r.style.display = (n === 0 || i < n) ? '' : 'none';
+    });
+}
+document.addEventListener('DOMContentLoaded', function() { setPlayerLimit(10); });
 </script>
 
 </body>
