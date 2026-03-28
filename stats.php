@@ -167,17 +167,16 @@ if ($has_games) {
 
     $rounds_per_player = $pdo->query("
         SELECT s.name,
-               COUNT(g.id)                      AS total_rounds,
-               SUM(g.named)                     AS named_rounds,
-               COUNT(g.id) - SUM(g.named)       AS anon_rounds,
-               MAX(g.score)                     AS best_score,
-               MAX(g.wave)                      AS best_wave,
-               ROUND(AVG(g.score))              AS avg_score
-        FROM games g
-        JOIN scores s ON s.player_id = g.player_id
-        $wg
-        GROUP BY s.player_id, s.name
-        ORDER BY best_score DESC
+               COUNT(g.id)                                    AS total_rounds,
+               COALESCE(SUM(g.named), 0)                     AS named_rounds,
+               COUNT(g.id) - COALESCE(SUM(g.named), 0)       AS anon_rounds,
+               s.score                                        AS best_score,
+               s.wave                                         AS best_wave,
+               ROUND(AVG(g.score))                            AS avg_score
+        FROM scores s
+        LEFT JOIN games g ON g.player_id = s.player_id AND s.player_id IS NOT NULL
+        GROUP BY s.id, s.name, s.score, s.wave
+        ORDER BY s.score DESC
     ")->fetchAll();
 
     // Visit pings (page loads with UTM, before game starts)
