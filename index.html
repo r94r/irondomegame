@@ -566,13 +566,14 @@ body {
 #alert-banner {
   position:absolute; top:50%; left:50%;
   transform:translate(-50%,-50%);
+  width:100%;
   text-align:center;
   pointer-events:none;
   z-index:20;
   display:none;
 }
 #alert-banner .atitle {
-  font-size:clamp(40px,9vw,80px);
+  font-size:clamp(48px,11vw,96px);
   font-weight:700;
   letter-spacing:5px;
   text-shadow:0 0 40px currentColor;
@@ -585,7 +586,7 @@ body {
   opacity:.9;
 }
 #alert-banner.alert-mode .asub {
-  font-size:clamp(24px,5.8vw,48px);
+  font-size:clamp(28px,6.5vw,56px);
   letter-spacing:3px;
   margin-top:4px;
   white-space:pre-wrap;
@@ -938,7 +939,7 @@ const STRINGS = {
     'go-title':'העיר נהרסה','go-sub':'כל הבניינים נהרסו.',
     'score-prefix':'ניקוד: ','play-again':'שחק שוב',
     'gw-title':'הגנה הצליחה','gw-sub':'שרדת את כל הגלים!',
-    'red-alert':'🚨 צבע\nאדום 🚨','wave-prefix':'גל',
+    'red-alert':'🚨 צבע אדום 🚨','wave-prefix':'גל',
     'wave-clear':'גל הושלם','preparing-next':'מכין גל הבא...',
     'go':'קדימה!',
     'saving':'שומר...','saved':'נשמר! ✓',

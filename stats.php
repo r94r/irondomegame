@@ -26,19 +26,23 @@ $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb
 $period = isset($_GET['period']) ? (int)$_GET['period'] : 0;
 if ($period === 1) {
     $w            = "WHERE DATE(created) = CURDATE()";
+    $ws           = "WHERE DATE(s.created) = CURDATE()";
     $wg           = "WHERE DATE(g.created) = CURDATE()";
     $period_label = 'Today';
 } elseif ($period === 7) {
     $w            = "WHERE created >= NOW() - INTERVAL 7 DAY";
+    $ws           = "WHERE s.created >= NOW() - INTERVAL 7 DAY";
     $wg           = "WHERE g.created >= NOW() - INTERVAL 7 DAY";
     $period_label = 'Last 7 Days';
 } elseif ($period === 30) {
     $w            = "WHERE created >= NOW() - INTERVAL 30 DAY";
+    $ws           = "WHERE s.created >= NOW() - INTERVAL 30 DAY";
     $wg           = "WHERE g.created >= NOW() - INTERVAL 30 DAY";
     $period_label = 'Last 30 Days';
 } else {
     $period       = 0;
     $w            = "";
+    $ws           = "";
     $wg           = "";
     $period_label = 'All Time';
 }
@@ -75,7 +79,7 @@ $per_player = $pdo->query("
         MAX(s.created)       AS last_seen
     FROM scores s
     LEFT JOIN games g ON g.player_id = s.player_id AND s.player_id IS NOT NULL
-    $w
+    $ws
     GROUP BY s.name
     ORDER BY best_score DESC
 ")->fetchAll();
