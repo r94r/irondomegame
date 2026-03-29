@@ -599,13 +599,17 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
 /* ======= BAR CHART ======= */
 .chart-outer { padding-bottom: 0.5rem; }
 
+.barchart-scroll {
+    overflow-x: auto;
+    padding-bottom: 4px;
+}
 .barchart-canvas {
     display: flex;
     align-items: flex-end;
     gap: 4px;
     height: 90px;
-    overflow-x: auto;
     padding: 0 2px 0;
+    min-width: max-content;
 }
 .bar-grp {
     display: flex;
@@ -627,8 +631,8 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
 .barchart-axis {
     display: flex;
     gap: 4px;
-    overflow-x: auto;
-    padding: 3px 2px 0;
+    padding: 3px 2px 2px;
+    min-width: max-content;
 }
 .bar-lbl {
     width: 9px;
@@ -636,7 +640,7 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
     color: var(--dim);
     text-align: center;
     flex-shrink: 0;
-    overflow: hidden;
+    overflow: visible;
 }
 /* extra space for groups */
 .bar-grp + .bar-grp { margin-left: 0; }
@@ -711,7 +715,7 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
     .summary-grid { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
     .kpi-value { font-size: 1.5rem; }
     .bar { width: 6px; }
-    .bar-lbl { width: 6px; }
+    .bar-lbl { width: 6px; overflow: visible; }
 }
 @media (max-width: 420px) {
     .summary-grid { grid-template-columns: repeat(2, 1fr); }
@@ -786,6 +790,7 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
             <?php if (count($chart_data) > 0): ?>
             <!-- Bar chart -->
             <div class="chart-outer">
+            <div class="barchart-scroll">
                 <div class="barchart-canvas" id="dailyChart">
                 <?php foreach ($chart_data_r as $row):
                     if ($has_games) {
@@ -824,6 +829,7 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
                     <div class="bar-lbl"><?= htmlspecialchars($day_label) ?></div>
                 <?php endforeach; ?>
                 </div>
+            </div>
             </div>
             <?php if ($has_games): ?>
             <div class="chart-legend">
