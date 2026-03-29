@@ -231,6 +231,9 @@ body {
   margin:4px 0 2px;
   line-height:1;
 }
+#hs-rank {
+  font-size:15px; font-weight:700; color:#46c8ff; letter-spacing:.5px; margin:3px 0 1px;
+}
 #hs-prev-best {
   font-size:11px; color:#6699bb; margin-bottom:0; letter-spacing:1px; min-height:14px;
 }
@@ -720,6 +723,7 @@ body {
     <div class="modal-icon" id="hs-icon">🏆</div>
     <h2 class="modal-title" id="hs-title" style="color:#ffd700">NEW HIGH SCORE!</h2>
     <div id="hs-score-display"></div>
+    <div id="hs-rank"></div>
     <div id="hs-prev-best"></div>
     <p class="modal-sub" id="hs-sub">Enter your name for the leaderboard:</p>
     <input id="hs-name-input" type="text" maxlength="16" placeholder="Your name…" autocomplete="off" spellcheck="false">
@@ -881,6 +885,10 @@ const STRINGS = {
     'ammo-warn':'No {n} ammo!','wrong-type':'Wrong interceptor type!',
     'pause-title':'PAUSED','pause-sub':'Press P or tap Resume','pause-resume':'▶ Resume',
     'hs-title':'NEW HIGH SCORE!','hs-lb-title':'TOP 20!','hs-sub':'Enter your name for the leaderboard:',
+    'hs-rank-1':'🥇 #1 on the leaderboard — legendary!',
+    'hs-rank-2':'🥈 You\'re #2 — just one step from the top!',
+    'hs-rank-3':'🥉 Top 3 — incredible!',
+    'hs-rank-n':'You\'re #{n} on the leaderboard — keep climbing!',
     'hs-submit':'Submit 🚀','hs-skip':'Skip',
     'lb-title':'LEADERBOARD','lb-close':'Close','view-lb':'🏆 Leaderboard',
     'share-text':'I scored {score} pts on wave {wave} in Kipod Barzel! 🦔🚀 Can you beat me?',
@@ -919,6 +927,10 @@ const STRINGS = {
     'ammo-warn':'נגמרה תחמושת {n}!','wrong-type':'סוג מיירט שגוי!',
     'pause-title':'מושהה','pause-sub':'לחץ P או הקש המשך','pause-resume':'▶ המשך',
     'hs-title':'שיא חדש!','hs-lb-title':'טופ 20!','hs-sub':'הכנס שם לטבלת הדירוג:',
+    'hs-rank-1':'🥇 מקום ראשון — אגדי!',
+    'hs-rank-2':'🥈 מקום שני — צעד אחד מהפסגה!',
+    'hs-rank-3':'🥉 טופ 3 — מדהים!',
+    'hs-rank-n':'אתה במקום #{n} בלוח השיאים — המשך לטפס!',
     'hs-submit':'שלח 🚀','hs-skip':'דלג',
     'lb-title':'טבלת שיאים','lb-close':'סגור','view-lb':'🏆 טבלת שיאים',
     'share-text':'הגעתי ל-{score} נקודות בגל {wave} בכיפוד ברזל! 🦔🚀 האם תוכל/י לנצח אותי?',
@@ -1026,6 +1038,7 @@ const LB = {
   _gameId: null,  // games table row id for the current round
   _minScore: 0,   // lowest score currently on the board (0 = board not full yet)
   _lbCount: 0,    // how many entries are on the board
+  _lbScores: [],  // cached scores for rank calculation
   _queue: [],     // offline score queue
 
   _loadQueue(){
@@ -1072,10 +1085,13 @@ const LB = {
     // Only prompt if score would actually make the top 20
     if(this._lbCount >= 20 && score <= this._minScore) return;
     this._pending = {score, wave};
+    // Compute rank: how many existing scores are strictly higher + 1
+    const rank = this._lbScores.filter(s => s > score).length + 1;
     // Title, icon and color depend on whether this is a personal best
     const titleEl = document.getElementById('hs-title');
     const iconEl = document.getElementById('hs-icon');
     const prevEl = document.getElementById('hs-prev-best');
+    const rankEl = document.getElementById('hs-rank');
     if(isNewBest){
       iconEl.textContent = '🏆';
       titleEl.textContent = T('hs-title');
@@ -1086,6 +1102,19 @@ const LB = {
       titleEl.textContent = T('hs-lb-title');
       titleEl.style.color = '#46c8ff';
       prevEl.textContent = local > 0 ? `best: ${local.toLocaleString()}` : '';
+    }
+    if(rank === 1){
+      rankEl.textContent = T('hs-rank-1');
+      rankEl.style.color = '#ffd700';
+    } else if(rank === 2){
+      rankEl.textContent = T('hs-rank-2');
+      rankEl.style.color = '#c0c0c0';
+    } else if(rank === 3){
+      rankEl.textContent = T('hs-rank-3');
+      rankEl.style.color = '#cd7f32';
+    } else {
+      rankEl.textContent = T('hs-rank-n').replace('{n}', rank);
+      rankEl.style.color = '#46c8ff';
     }
     // Re-trigger icon animation
     iconEl.style.animation = 'none';
@@ -1189,6 +1218,7 @@ const LB = {
       // Cache board stats for checkScore gating
       this._lbCount = data.length;
       this._minScore = data.length ? parseInt(data[data.length-1].score) : 0;
+      this._lbScores = data.map(e => parseInt(e.score));
       if(!data.length){ el.innerHTML=`<div class="lb-empty">${T('no-scores')}</div>`; return; }
       const medals=['🥇','🥈','🥉'];
       const me = localStorage.getItem('id_lastname')||'';
