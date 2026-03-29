@@ -66,7 +66,7 @@ body {
   height:100vh;
   height:100dvh;
   overflow:hidden;
-  font-family:'Arial',sans-serif;
+  font-family:system-ui,-apple-system,'Segoe UI','Arial',sans-serif;
   touch-action:none;
   user-select:none;
 }
@@ -219,12 +219,20 @@ body {
   box-shadow:0 8px 40px rgba(0,0,0,.7);
 }
 .modal-icon { font-size:36px; margin-bottom:8px; }
-.modal-title { font-size:22px; font-weight:900; letter-spacing:3px; margin-bottom:4px; }
+#highscore-modal .modal-icon { font-size:52px; margin-bottom:6px; }
+@keyframes hs-icon-pop { 0%{transform:scale(0.5);opacity:0} 70%{transform:scale(1.2)} 100%{transform:scale(1);opacity:1} }
+#highscore-modal .modal-icon { animation:hs-icon-pop .45s cubic-bezier(.34,1.56,.64,1) both; }
+.modal-title { font-size:22px; font-weight:700; letter-spacing:3px; margin-bottom:4px; }
+#hs-title { font-size:26px; letter-spacing:4px; }
 .modal-sub { font-size:12px; color:#88aacc; margin:10px 0 12px; }
 #hs-score-display {
-  font-size:34px; font-weight:900; color:#ffd700;
-  text-shadow:0 0 20px #ffd70088;
-  margin:4px 0;
+  font-size:42px; font-weight:900; color:#ffd700;
+  text-shadow:0 0 30px #ffd700aa;
+  margin:6px 0 2px;
+  line-height:1;
+}
+#hs-prev-best {
+  font-size:11px; color:#6699bb; margin-bottom:2px; letter-spacing:1px;
 }
 #hs-name-input {
   width:100%; padding:10px 14px;
@@ -428,7 +436,7 @@ body {
 .icp-btn.sel { background:rgba(0,20,50,0.95); }
 .icp-btn.empty { opacity:.4; border-color:#333; cursor:not-allowed; }
 .icp-btn .iname { font-size:10px; font-weight:bold; text-transform:uppercase; letter-spacing:.5px; }
-.icp-btn .iam  { font-size:18px; font-weight:900; color:#fff; line-height:1; }
+.icp-btn .iam  { font-size:18px; font-weight:700; color:#fff; line-height:1; }
 .icp-btn .itgt { font-size:8px; margin-top:1px; }
 
 /* Per-button missile-color accents */
@@ -559,8 +567,8 @@ body {
   display:none;
 }
 #alert-banner .atitle {
-  font-size:clamp(30px,7vw,60px);
-  font-weight:900;
+  font-size:clamp(40px,9vw,80px);
+  font-weight:700;
   letter-spacing:5px;
   text-shadow:0 0 40px currentColor;
   animation:pulse 0.5s ease-in-out infinite alternate;
@@ -570,6 +578,12 @@ body {
   font-size:clamp(14px,3vw,22px);
   margin-top:8px;
   opacity:.9;
+}
+#alert-banner.alert-mode .asub {
+  font-size:clamp(24px,5.8vw,48px);
+  letter-spacing:3px;
+  margin-top:4px;
+  white-space:pre-wrap;
 }
 
 #ammo-warn {
@@ -701,9 +715,10 @@ body {
 <!-- ---- New High Score ---- -->
 <div id="highscore-modal" class="modal-overlay" style="display:none">
   <div class="modal-box">
-    <div class="modal-icon">🏆</div>
+    <div class="modal-icon" id="hs-icon">🏆</div>
     <h2 class="modal-title" id="hs-title" style="color:#ffd700">NEW HIGH SCORE!</h2>
     <div id="hs-score-display"></div>
+    <div id="hs-prev-best"></div>
     <p class="modal-sub" id="hs-sub">Enter your name for the leaderboard:</p>
     <input id="hs-name-input" type="text" maxlength="16" placeholder="Your name…" autocomplete="off" spellcheck="false">
     <div class="modal-btns">
@@ -748,7 +763,7 @@ body {
 
     <!-- Zone 3: Instructions + footer -->
     <div id="htp-zone-bot">
-      <div id="htp-how-title" style="font-size:20px;font-weight:800;color:#fff;margin-bottom:4px;flex-shrink:0">How to Play?</div>
+      <div id="htp-how-title" style="font-size:20px;font-weight:700;color:#fff;margin-bottom:4px;flex-shrink:0">How to Play?</div>
       <div id="htp-sub" style="margin-bottom:10px">Defend the city from incoming missiles</div>
       <div id="htp-steps">
         <div class="htp-step">
@@ -863,7 +878,7 @@ const STRINGS = {
     'score-lbl':'Score','city-lbl':'🏙 City','wave-lbl':'Wave',
     'ammo-warn':'No {n} ammo!','wrong-type':'Wrong interceptor type!',
     'pause-title':'PAUSED','pause-sub':'Press P or tap Resume','pause-resume':'▶ Resume',
-    'hs-title':'NEW HIGH SCORE!','hs-sub':'Enter your name for the leaderboard:',
+    'hs-title':'NEW HIGH SCORE!','hs-lb-title':'TOP 20!','hs-sub':'Enter your name for the leaderboard:',
     'hs-submit':'Submit 🚀','hs-skip':'Skip',
     'lb-title':'LEADERBOARD','lb-close':'Close','view-lb':'🏆 Leaderboard',
     'share-text':'I scored {score} pts on wave {wave} in Kipod Barzel! 🦔🚀 Can you beat me?',
@@ -901,7 +916,7 @@ const STRINGS = {
     'score-lbl':'ניקוד','city-lbl':'🏙 עיר','wave-lbl':'גל',
     'ammo-warn':'נגמרה תחמושת {n}!','wrong-type':'סוג מיירט שגוי!',
     'pause-title':'מושהה','pause-sub':'לחץ P או הקש המשך','pause-resume':'▶ המשך',
-    'hs-title':'שיא חדש!','hs-sub':'הכנס שם לטבלת הדירוג:',
+    'hs-title':'שיא חדש!','hs-lb-title':'טופ 20!','hs-sub':'הכנס שם לטבלת הדירוג:',
     'hs-submit':'שלח 🚀','hs-skip':'דלג',
     'lb-title':'טבלת שיאים','lb-close':'סגור','view-lb':'🏆 טבלת שיאים',
     'share-text':'הגעתי ל-{score} נקודות בגל {wave} בכיפוד ברזל! 🦔🚀 האם תוכל/י לנצח אותי?',
@@ -909,7 +924,7 @@ const STRINGS = {
     'go-title':'העיר נהרסה','go-sub':'כל הבניינים נהרסו.',
     'score-prefix':'ניקוד: ','play-again':'שחק שוב',
     'gw-title':'הגנה הצליחה','gw-sub':'שרדת את כל הגלים!',
-    'red-alert':'🚨 צבע אדום 🚨','wave-prefix':'גל',
+    'red-alert':'🚨 צבע\nאדום 🚨','wave-prefix':'גל',
     'wave-clear':'גל הושלם','preparing-next':'מכין גל הבא...',
     'go':'קדימה!',
     'saving':'שומר...','saved':'נשמר! ✓',
@@ -1049,11 +1064,31 @@ const LB = {
 
   checkScore(score, wave){
     const local = parseInt(localStorage.getItem('id_hiscore')||'0');
-    if(score > local) localStorage.setItem('id_hiscore', score);
+    const isNewBest = score > local;
+    if(isNewBest) localStorage.setItem('id_hiscore', score);
     if(score <= 0) return;
     // Only prompt if score would actually make the top 20
     if(this._lbCount >= 20 && score <= this._minScore) return;
     this._pending = {score, wave};
+    // Title, icon and color depend on whether this is a personal best
+    const titleEl = document.getElementById('hs-title');
+    const iconEl = document.getElementById('hs-icon');
+    const prevEl = document.getElementById('hs-prev-best');
+    if(isNewBest){
+      iconEl.textContent = '🏆';
+      titleEl.textContent = T('hs-title');
+      titleEl.style.color = '#ffd700';
+      prevEl.textContent = local > 0 ? `▲ previous best: ${local.toLocaleString()}` : '';
+    } else {
+      iconEl.textContent = '🎯';
+      titleEl.textContent = T('hs-lb-title');
+      titleEl.style.color = '#46c8ff';
+      prevEl.textContent = local > 0 ? `best: ${local.toLocaleString()}` : '';
+    }
+    // Re-trigger icon animation
+    iconEl.style.animation = 'none';
+    iconEl.offsetWidth; // reflow
+    iconEl.style.animation = '';
     document.getElementById('hs-score-display').textContent = score.toLocaleString();
     document.getElementById('hs-name-input').value = localStorage.getItem('id_lastname')||'';
     document.getElementById('hs-status').textContent = '';
@@ -2083,10 +2118,10 @@ const G = {
     // 4s banner: RED ALERT (0.8s) → 3 (1s) → 2 (1s) → 1 (1s) → GO (0.2s) → play
     this.state='banner'; this.bannerT=3.6; this._countStep=-1;
     document.getElementById('v-wave').textContent=this.wave+1;
-    this._showBanner('3',T('red-alert'),'#ffdd00','#ff4444',true);
+    this._showBanner('3',T('red-alert'),'#ffdd00','#ff4444',true,true);
   },
 
-  _showBanner(title,sub,tcol,scol,pulse){
+  _showBanner(title,sub,tcol,scol,pulse,alertMode){
     const el=document.getElementById('alert-banner');
     const t=document.getElementById('ab-title');
     const s=document.getElementById('ab-sub');
@@ -2094,6 +2129,7 @@ const G = {
     s.textContent=sub; s.style.color=scol;
     t.style.animation=pulse?'pulse .5s ease-in-out infinite alternate':'none';
     s.style.animation=pulse?'pulse .5s ease-in-out infinite alternate':'none';
+    el.classList.toggle('alert-mode', !!alertMode);
     el.style.display='block'; el.style.opacity='1';
   },
 
@@ -2311,10 +2347,10 @@ const G = {
       const step = this.bannerT>2.6 ? 3 : this.bannerT>1.6 ? 2 : this.bannerT>0.6 ? 1 : 0;
       if(step !== this._countStep){
         this._countStep = step;
-        if(step===3){ this._showBanner('3',T('red-alert'),'#ffdd00','#ff4444',true); }
-        else if(step===2){ this._showBanner('2',T('red-alert'),'#ffdd00','#ff4444',true); }
-        else if(step===1){ this._showBanner('1',T('red-alert'),'#ffdd00','#ff4444',true); }
-        else if(step===0){ this._showBanner(T('go'),T('wave-prefix')+' '+(this.wave+1),'#44ff44','#aaffaa',false); }
+        if(step===3){ this._showBanner('3',T('red-alert'),'#ffdd00','#ff4444',true,true); }
+        else if(step===2){ this._showBanner('2',T('red-alert'),'#ffdd00','#ff4444',true,true); }
+        else if(step===1){ this._showBanner('1',T('red-alert'),'#ffdd00','#ff4444',true,true); }
+        else if(step===0){ this._showBanner(T('go'),T('wave-prefix')+' '+(this.wave+1),'#44ff44','#aaffaa',false,false); }
       }
       if(this.bannerT<=0){ this.state='playing'; this._hideBanner(); if(this.wave===0) this._showTutorialHint(); }
       return;
