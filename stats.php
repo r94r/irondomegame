@@ -634,6 +634,11 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
     padding: 3px 2px 2px;
     min-width: max-content;
 }
+.bar-axis-grp {
+    display: flex;
+    gap: 1px;
+    flex-shrink: 0;
+}
 .bar-lbl {
     width: 9px;
     font-size: 0.55rem;
@@ -823,10 +828,12 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
                     $day_label = isset($row['day']) ? substr($row['day'], 5) : '';
                     $num_bars = $has_games ? 3 : 1;
                 ?>
+                    <div class="bar-axis-grp">
                     <?php for ($bi = 0; $bi < $num_bars - 1; $bi++): ?>
-                    <div class="bar-lbl"></div>
+                        <div class="bar-lbl"></div>
                     <?php endfor; ?>
-                    <div class="bar-lbl"><?= htmlspecialchars($day_label) ?></div>
+                        <div class="bar-lbl"><?= htmlspecialchars($day_label) ?></div>
+                    </div>
                 <?php endforeach; ?>
                 </div>
             </div>
