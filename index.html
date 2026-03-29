@@ -219,20 +219,20 @@ body {
   box-shadow:0 8px 40px rgba(0,0,0,.7);
 }
 .modal-icon { font-size:36px; margin-bottom:8px; }
-#highscore-modal .modal-icon { font-size:52px; margin-bottom:6px; }
+#highscore-modal .modal-icon { font-size:52px; margin-bottom:4px; }
 @keyframes hs-icon-pop { 0%{transform:scale(0.5);opacity:0} 70%{transform:scale(1.2)} 100%{transform:scale(1);opacity:1} }
 #highscore-modal .modal-icon { animation:hs-icon-pop .45s cubic-bezier(.34,1.56,.64,1) both; }
 .modal-title { font-size:22px; font-weight:700; letter-spacing:3px; margin-bottom:4px; }
-#hs-title { font-size:26px; letter-spacing:4px; }
-.modal-sub { font-size:12px; color:#88aacc; margin:10px 0 12px; }
+#hs-title { font-size:24px; letter-spacing:3px; margin-bottom:2px; }
+.modal-sub { font-size:12px; color:#88aacc; margin:8px 0 10px; }
 #hs-score-display {
-  font-size:42px; font-weight:900; color:#ffd700;
+  font-size:46px; font-weight:900; color:#ffd700;
   text-shadow:0 0 30px #ffd700aa;
-  margin:6px 0 2px;
+  margin:4px 0 2px;
   line-height:1;
 }
 #hs-prev-best {
-  font-size:11px; color:#6699bb; margin-bottom:2px; letter-spacing:1px;
+  font-size:11px; color:#6699bb; margin-bottom:0; letter-spacing:1px; min-height:14px;
 }
 #hs-name-input {
   width:100%; padding:10px 14px;
@@ -240,23 +240,25 @@ body {
   border:1px solid rgba(70,160,255,.4);
   border-radius:8px; color:#fff;
   font-size:16px; text-align:center;
-  outline:none; margin-bottom:14px;
+  outline:none; margin-bottom:10px;
+  box-sizing:border-box;
   transition:border-color .2s;
 }
 #hs-name-input:focus { border-color:#4af; }
 #hs-name-input::placeholder { color:#446; }
-.modal-btns { display:flex; gap:10px; justify-content:center; }
+.modal-btns { display:flex; flex-direction:column; gap:6px; align-items:stretch; }
+.modal-btns .rbtn { margin-top:0; width:100%; }
 .rbtn-ghost {
   padding:9px 20px;
   background:transparent;
-  border:1px solid rgba(70,160,255,.35);
-  border-radius:8px; color:#88aacc;
-  font-size:14px; cursor:pointer;
+  border:1px solid rgba(70,160,255,.25);
+  border-radius:8px; color:#6699bb;
+  font-size:13px; cursor:pointer;
   touch-action:manipulation;
   transition:border-color .15s, color .15s;
 }
 .rbtn-ghost:hover { border-color:#4af; color:#fff; }
-#hs-status { font-size:11px; color:#88aacc; margin-top:8px; min-height:16px; }
+#hs-status { font-size:11px; color:#88aacc; margin-top:6px; min-height:16px; }
 /* Leaderboard list */
 #lb-list {
   width:100%; margin-top:12px;
@@ -714,7 +716,7 @@ body {
 
 <!-- ---- New High Score ---- -->
 <div id="highscore-modal" class="modal-overlay" style="display:none">
-  <div class="modal-box">
+  <div class="modal-box" style="padding:22px 22px 20px">
     <div class="modal-icon" id="hs-icon">🏆</div>
     <h2 class="modal-title" id="hs-title" style="color:#ffd700">NEW HIGH SCORE!</h2>
     <div id="hs-score-display"></div>
@@ -803,7 +805,7 @@ body {
           <span class="htp-iname" style="color:#ff44ff" id="iname-guide-arrow">Arrow</span>
         </div>
       </div>
-      <p style="font-size:10px;color:#778;text-align:center;margin-top:8px">Created by <a href="mailto:raphael.reinig@gmail.com" style="color:#778;text-decoration:none">Raphael Reinig</a> &nbsp;·&nbsp; <a href="https://buymeacoffee.com/kipod_barzel" target="_blank" rel="noopener" style="color:#ffdd00;text-decoration:none">☕ buy me a coffee</a></p>
+      <p style="font-size:10px;color:#778;text-align:center;margin-top:8px">Created by <a href="mailto:raphael.reinig@gmail.com" style="color:#778;text-decoration:none">Raphael Reinig ✉</a> &nbsp;·&nbsp; <a href="https://buymeacoffee.com/kipod_barzel" target="_blank" rel="noopener" style="color:#ffdd00;text-decoration:none">☕ buy me a coffee</a></p>
     </div>
 
   </div>
@@ -835,7 +837,7 @@ body {
   <div style="margin-top:14px">
     <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="kipod_barzel" data-color="#FFDD00" data-emoji="☕" data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff"></script>
   </div>
-  <p style="margin-top:10px;font-size:10px;color:#556">Created by <a href="mailto:raphael.reinig@gmail.com" style="color:#556;text-decoration:none">Raphael Reinig</a></p>
+  <p style="margin-top:10px;font-size:10px;color:#556">Created by <a href="mailto:raphael.reinig@gmail.com" style="color:#556;text-decoration:none">Raphael Reinig ✉</a></p>
 </div>
 <div class="end-screen" id="game-win">
   <h2 id="gw-title">DEFENSE SUCCESSFUL</h2>
@@ -849,7 +851,7 @@ body {
   <div style="margin-top:14px">
     <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="kipod_barzel" data-color="#FFDD00" data-emoji="☕" data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff"></script>
   </div>
-  <p style="margin-top:10px;font-size:10px;color:#556">Created by <a href="mailto:raphael.reinig@gmail.com" style="color:#556;text-decoration:none">Raphael Reinig</a></p>
+  <p style="margin-top:10px;font-size:10px;color:#556">Created by <a href="mailto:raphael.reinig@gmail.com" style="color:#556;text-decoration:none">Raphael Reinig ✉</a></p>
 </div>
 </div><!-- /game-wrap -->
 
