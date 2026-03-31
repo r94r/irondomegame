@@ -29,22 +29,26 @@ if ($period === 1) {
     $w            = "WHERE DATE(created) = CURDATE()";
     $ws           = "WHERE DATE(s.created) = CURDATE()";
     $wg           = "WHERE DATE(g.created) = CURDATE()";
+    $wg_and       = "AND DATE(g2.created) = CURDATE()";
     $period_label = 'Today';
 } elseif ($period === 7) {
     $w            = "WHERE created >= NOW() - INTERVAL 7 DAY";
     $ws           = "WHERE s.created >= NOW() - INTERVAL 7 DAY";
     $wg           = "WHERE g.created >= NOW() - INTERVAL 7 DAY";
+    $wg_and       = "AND g2.created >= NOW() - INTERVAL 7 DAY";
     $period_label = 'Last 7 Days';
 } elseif ($period === 30) {
     $w            = "WHERE created >= NOW() - INTERVAL 30 DAY";
     $ws           = "WHERE s.created >= NOW() - INTERVAL 30 DAY";
     $wg           = "WHERE g.created >= NOW() - INTERVAL 30 DAY";
+    $wg_and       = "AND g2.created >= NOW() - INTERVAL 30 DAY";
     $period_label = 'Last 30 Days';
 } else {
     $period       = 0;
     $w            = "";
     $ws           = "";
     $wg           = "";
+    $wg_and       = "";
     $period_label = 'All Time';
 }
 
@@ -163,7 +167,10 @@ if ($has_games) {
 
     $recent_games = $pdo->query("
         SELECT g.score, g.wave, g.named, g.created, g.utm, g.source,
-               s.name
+               s.name,
+               CASE WHEN g.player_id IS NOT NULL THEN
+                   (SELECT COUNT(*) FROM games g2 WHERE g2.player_id = g.player_id $wg_and)
+               END AS player_plays
         FROM games g
         LEFT JOIN scores s ON s.player_id = g.player_id AND g.player_id IS NOT NULL
         $wg
@@ -604,16 +611,6 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
 .anon-label { color: var(--anon); font-style: italic; font-size: 0.8rem; }
 .utm-tag { margin-left: 5px; font-size: 0.72rem; color: var(--muted); background: var(--bg3); border-radius: 4px; padding: 1px 5px; }
 
-.dot {
-    display: inline-block;
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    margin-right: 5px;
-    vertical-align: middle;
-    flex-shrink: 0;
-}
-.dot-named { background: var(--success); }
-.dot-anon  { background: var(--anon); }
 
 /* ======= BAR CHART ======= */
 .chart-outer { padding-bottom: 0.5rem; }
@@ -1115,6 +1112,7 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
                     <thead>
                         <tr>
                             <th>Player</th>
+                            <th class="r">Plays</th>
                             <th class="r">Score</th>
                             <th class="c">Wave</th>
                             <th>Time</th>
@@ -1122,12 +1120,10 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
                     </thead>
                     <tbody>
                     <?php foreach ($recent_rows as $row):
-                        $is_named = $use_games_recent ? (bool)($row['named'] ?? false) : true;
-                        $name     = $row['name'] ?? null;
+                        $name = $row['name'] ?? null;
                     ?>
                         <tr>
                             <td>
-                                <span class="dot <?= $is_named ? 'dot-named' : 'dot-anon' ?>"></span>
                                 <?php if ($name): ?>
                                     <span class="player-name"><?= htmlspecialchars($name) ?></span>
                                 <?php else: ?>
@@ -1140,6 +1136,7 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
                                     <span class="utm-tag" style="color:<?= utmColor($row['source']) ?>;opacity:0.7" title="acquired via <?= htmlspecialchars($row['source']) ?>">↩<?= htmlspecialchars($row['source']) ?></span>
                                 <?php endif; ?>
                             </td>
+                            <td class="r muted"><?= isset($row['player_plays']) ? fmt($row['player_plays']) : '—' ?></td>
                             <td class="r score-val"><?= fmt($row['score'] ?? 0) ?></td>
                             <td class="c"><span class="wave-pill"><?= (int)($row['wave'] ?? 0) ?></span></td>
                             <td class="dim"><?= fmtTime($row['created'] ?? '') ?></td>
