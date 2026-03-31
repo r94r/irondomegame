@@ -1019,6 +1019,15 @@ const _utmValue = (()=>{
 })();
 function getUtm(){ return _utmValue; }
 
+function getSource(){
+  let src = localStorage.getItem('id_source');
+  if(!src && _utmValue){
+    src = _utmValue;
+    localStorage.setItem('id_source', src);
+  }
+  return src;
+}
+
 function getPlayerId(){
   let id = localStorage.getItem('id_player');
   if(!id){
@@ -1065,7 +1074,7 @@ const LB = {
     fetch(API_URL + '?game=1', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({token: this._token, utm: getUtm(), player_id: getPlayerId()})
+      body: JSON.stringify({token: this._token, utm: getUtm(), source: getSource(), player_id: getPlayerId()})
     }).then(r=>r.ok?r.json():null).then(d=>{ if(d&&d.game_id) this._gameId=d.game_id; }).catch(()=>{});
   },
 
