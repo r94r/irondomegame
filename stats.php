@@ -3,6 +3,7 @@
 //  Iron Dome – Private Stats Dashboard
 //  Protected by HTTP Basic Auth — password set in config.php
 // =====================================================================
+date_default_timezone_set('Asia/Jerusalem');
 
 require __DIR__ . '/config.php';
 
