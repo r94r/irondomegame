@@ -116,6 +116,7 @@ $recent_games      = [];
 $by_wave_games     = [];
 $rounds_per_player = [];
 $utm_breakdown     = [];
+$source_breakdown  = [];
 $visit_breakdown   = [];
 
 if ($has_games) {
@@ -160,7 +161,7 @@ if ($has_games) {
     ")->fetchAll();
 
     $recent_games = $pdo->query("
-        SELECT g.score, g.wave, g.named, g.created, g.utm,
+        SELECT g.score, g.wave, g.named, g.created, g.utm, g.source,
                s.name
         FROM games g
         LEFT JOIN scores s ON s.player_id = g.player_id AND g.player_id IS NOT NULL
@@ -176,7 +177,8 @@ if ($has_games) {
                COUNT(g.id) - COALESCE(SUM(g.named), 0)       AS anon_rounds,
                s.score                                        AS best_score,
                s.wave                                         AS best_wave,
-               ROUND(AVG(g.score))                            AS avg_score
+               ROUND(AVG(g.score))                            AS avg_score,
+               MAX(g.source)                                  AS source
         FROM scores s
         LEFT JOIN games g ON g.player_id = s.player_id AND s.player_id IS NOT NULL
         GROUP BY s.id, s.name, s.score, s.wave
@@ -201,6 +203,18 @@ if ($has_games) {
             SELECT COALESCE(utm, 'direct') AS source,
                 COUNT(*) AS plays,
                 SUM(named) AS named
+            FROM games
+            $w
+            GROUP BY source
+            ORDER BY plays DESC
+        ")->fetchAll();
+    } catch (Exception $e) {}
+
+    try {
+        $source_breakdown = $pdo->query("
+            SELECT COALESCE(source, 'direct') AS source,
+                COUNT(*) AS plays,
+                COUNT(DISTINCT player_id) AS players
             FROM games
             $w
             GROUP BY source
@@ -963,6 +977,43 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
                     </tbody>
                 </table>
             </div>
+
+            <?php if (count($source_breakdown) > 0):
+                $src_total = array_sum(array_column($source_breakdown, 'plays'));
+                if (!$src_total) $src_total = 1;
+            ?>
+            <h3 style="margin:20px 0 8px;font-size:0.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Acquisition Source (first-ever visit)</h3>
+            <div class="tbl-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Source</th>
+                            <th class="r">Players</th>
+                            <th class="r">Plays</th>
+                            <th class="r">Share</th>
+                            <th style="min-width:120px;padding-left:1rem">Bar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($source_breakdown as $row):
+                        $src   = $row['source'];
+                        $plays = (int)$row['plays'];
+                        $pct   = round(100 * $plays / $src_total, 1);
+                        $color = utmColor($src);
+                    ?>
+                        <tr>
+                            <td><span class="src-label"><span class="src-dot" style="background:<?= $color ?>"></span><?= htmlspecialchars($src) ?></span></td>
+                            <td class="r score-val"><?= fmt($row['players']) ?></td>
+                            <td class="r muted"><?= fmt($plays) ?></td>
+                            <td class="r muted"><?= $pct ?>%</td>
+                            <td style="padding-left:1rem"><div class="utm-bar-bg"><div class="utm-bar-fill" style="width:<?= $pct ?>%;background:<?= $color ?>"></div></div></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
+
         </div>
         </div></div>
     </div>
@@ -1001,7 +1052,9 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
                             <th class="r">Best Score</th>
                             <th class="r">Avg Score</th>
                             <th class="c">Best Wave</th>
-                            <?php if (!$use_games_players): ?>
+                            <?php if ($use_games_players): ?>
+                            <th>Source</th>
+                            <?php else: ?>
                             <th>First Seen</th>
                             <th>Last Seen</th>
                             <?php endif; ?>
@@ -1023,7 +1076,9 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
                             <td class="r gold-val"><?= fmt($row['best_score'] ?? 0) ?></td>
                             <td class="r muted"><?= fmt($row['avg_score'] ?? 0) ?></td>
                             <td class="c"><span class="wave-pill"><?= (int)($row['best_wave'] ?? 0) ?></span></td>
-                            <?php if (!$use_games_players): ?>
+                            <?php if ($use_games_players): ?>
+                            <td><?php if (!empty($row['source'])): ?><span class="utm-tag" style="color:<?= utmColor($row['source']) ?>"><?= htmlspecialchars($row['source']) ?></span><?php else: ?><span class="dim">—</span><?php endif; ?></td>
+                            <?php else: ?>
                             <td class="dim"><?= fmtDate($row['first_seen'] ?? '') ?></td>
                             <td class="dim"><?= fmtDate($row['last_seen'] ?? '') ?></td>
                             <?php endif; ?>
@@ -1075,6 +1130,9 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
                                 <?php endif; ?>
                                 <?php if (!empty($row['utm'])): ?>
                                     <span class="utm-tag"><?= htmlspecialchars($row['utm']) ?></span>
+                                <?php endif; ?>
+                                <?php if (!empty($row['source']) && $row['source'] !== ($row['utm'] ?? '')): ?>
+                                    <span class="utm-tag" style="color:<?= utmColor($row['source']) ?>;opacity:0.7" title="acquired via <?= htmlspecialchars($row['source']) ?>">↩<?= htmlspecialchars($row['source']) ?></span>
                                 <?php endif; ?>
                             </td>
                             <td class="r score-val"><?= fmt($row['score'] ?? 0) ?></td>
