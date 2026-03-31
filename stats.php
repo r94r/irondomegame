@@ -233,11 +233,15 @@ function fmtf($n, $decimals = 1) {
 }
 function fmtDate($d) {
     if (!$d) return '—';
-    return date('M j, Y', strtotime($d));
+    $dt = new DateTime($d, new DateTimeZone('UTC'));
+    $dt->setTimezone(new DateTimeZone('Asia/Jerusalem'));
+    return $dt->format('M j, Y');
 }
 function fmtTime($d) {
     if (!$d) return '—';
-    return date('M j, H:i', strtotime($d));
+    $dt = new DateTime($d, new DateTimeZone('UTC'));
+    $dt->setTimezone(new DateTimeZone('Asia/Jerusalem'));
+    return $dt->format('M j, H:i');
 }
 function utmColor($source) {
     if ($source === 'direct')                      return '#6b7280';
