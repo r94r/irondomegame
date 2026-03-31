@@ -23,6 +23,50 @@ $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
 ]);
 
+// ---- Player detail API ----
+if (isset($_GET['player_id'])) {
+    header('Content-Type: application/json');
+    $pid = preg_replace('/[^a-zA-Z0-9\-]/', '', trim($_GET['player_id']));
+    if (!$pid) { echo json_encode(['error' => 'invalid']); exit; }
+
+    $info = $pdo->prepare("
+        SELECT s.name, MAX(g.source) AS source,
+               COUNT(g.id) AS total_plays,
+               MAX(g.score) AS best_score,
+               MAX(g.wave)  AS best_wave,
+               ROUND(AVG(g.score)) AS avg_score
+        FROM games g
+        LEFT JOIN scores s ON s.player_id = g.player_id
+        WHERE g.player_id = ?
+        GROUP BY s.name
+        LIMIT 1
+    ");
+    $info->execute([$pid]);
+    $row = $info->fetch();
+
+    $games = $pdo->prepare("
+        SELECT score, wave, utm, created
+        FROM games
+        WHERE player_id = ?
+        ORDER BY created DESC
+        LIMIT 100
+    ");
+    $games->execute([$pid]);
+    $history = $games->fetchAll();
+
+    // Convert timestamps to Israel time
+    $tz = new DateTimeZone('Asia/Jerusalem');
+    foreach ($history as &$g) {
+        $dt = new DateTime($g['created'], new DateTimeZone('UTC'));
+        $dt->setTimezone($tz);
+        $g['created'] = $dt->format('M j, H:i');
+    }
+    unset($g);
+
+    echo json_encode(['player' => $row, 'history' => $history]);
+    exit;
+}
+
 // ---- Period filter ----
 $period = isset($_GET['period']) ? (int)$_GET['period'] : 0;
 if ($period === 1) {
@@ -167,6 +211,7 @@ if ($has_games) {
 
     $recent_games = $pdo->query("
         SELECT g.score, g.wave, g.named, g.created, g.utm, g.source,
+               g.player_id,
                s.name,
                CASE WHEN g.player_id IS NOT NULL THEN
                    (SELECT COUNT(*) FROM games g2 WHERE g2.player_id = g.player_id $wg_and)
@@ -610,6 +655,7 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
 }
 .anon-label { color: var(--anon); font-style: italic; font-size: 0.8rem; }
 .utm-tag { margin-left: 5px; font-size: 0.72rem; color: var(--muted); background: var(--bg3); border-radius: 4px; padding: 1px 5px; }
+.player-link { cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
 
 
 /* ======= BAR CHART ======= */
@@ -1124,10 +1170,11 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
                     ?>
                         <tr>
                             <td>
+                                <?php $pid_attr = htmlspecialchars($row['player_id'] ?? ''); ?>
                                 <?php if ($name): ?>
-                                    <span class="player-name"><?= htmlspecialchars($name) ?></span>
+                                    <span class="player-name player-link" data-pid="<?= $pid_attr ?>"><?= htmlspecialchars($name) ?></span>
                                 <?php else: ?>
-                                    <span class="anon-label">anonymous</span>
+                                    <span class="anon-label player-link" data-pid="<?= $pid_attr ?>">anonymous</span>
                                 <?php endif; ?>
                                 <?php if (!empty($row['utm'])): ?>
                                     <span class="utm-tag"><?= htmlspecialchars($row['utm']) ?></span>
@@ -1208,6 +1255,17 @@ tbody td.dim   { color: var(--dim); font-size: 0.78rem; }
 
 </main>
 
+<!-- ===== PLAYER DETAIL MODAL ===== -->
+<div id="player-modal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;padding:16px">
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;width:100%;max-width:560px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0">
+            <span id="modal-title" style="font-weight:600;font-size:1rem"></span>
+            <button onclick="closePlayerModal()" style="background:none;border:none;color:var(--muted);font-size:1.3rem;cursor:pointer;line-height:1">&times;</button>
+        </div>
+        <div id="modal-body" style="overflow-y:auto;padding:16px 20px;flex:1"></div>
+    </div>
+</div>
+
 <script>
 function toggleSec(id) {
     var el = document.getElementById(id);
@@ -1237,6 +1295,70 @@ function setPlayerLimit(n) {
     });
 }
 document.addEventListener('DOMContentLoaded', function() { setPlayerLimit(10); });
+
+// ---- Player detail modal ----
+document.addEventListener('click', function(e) {
+    var el = e.target.closest('.player-link');
+    if (!el) return;
+    var pid = el.dataset.pid;
+    if (!pid) return;
+    openPlayerModal(pid, el.textContent.trim());
+});
+
+function openPlayerModal(pid, label) {
+    var modal = document.getElementById('player-modal');
+    document.getElementById('modal-title').textContent = label === 'anonymous' ? 'Anonymous Player' : label;
+    document.getElementById('modal-body').innerHTML = '<div style="color:var(--muted);text-align:center;padding:24px">Loading…</div>';
+    modal.style.display = 'flex';
+
+    fetch('?player_id=' + encodeURIComponent(pid))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var p = data.player || {};
+            var history = data.history || [];
+            var src = p.source ? '<span class="utm-tag" style="vertical-align:middle">' + p.source + '</span>' : '';
+            var html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">';
+            html += stat('Plays',     p.total_plays || 0);
+            html += stat('Best',      p.best_score  || 0);
+            html += stat('Avg',       p.avg_score   || 0);
+            html += stat('Top Wave',  p.best_wave   || 0);
+            html += '</div>';
+            if (p.source) html += '<div style="margin-bottom:14px;font-size:0.8rem;color:var(--muted)">Acquired via ' + src + '</div>';
+            if (history.length) {
+                html += '<table style="width:100%;border-collapse:collapse;font-size:0.82rem">';
+                html += '<thead><tr><th style="text-align:left;padding:4px 6px;color:var(--muted);font-weight:500">Time</th><th style="text-align:right;padding:4px 6px;color:var(--muted);font-weight:500">Score</th><th style="text-align:center;padding:4px 6px;color:var(--muted);font-weight:500">Wave</th><th style="text-align:left;padding:4px 6px;color:var(--muted);font-weight:500">Via</th></tr></thead><tbody>';
+                history.forEach(function(g) {
+                    html += '<tr style="border-top:1px solid var(--border)">';
+                    html += '<td style="padding:5px 6px;color:var(--muted)">' + g.created + '</td>';
+                    html += '<td style="padding:5px 6px;text-align:right;color:var(--gold)">' + g.score.toLocaleString() + '</td>';
+                    html += '<td style="padding:5px 6px;text-align:center"><span class="wave-pill">' + g.wave + '</span></td>';
+                    html += '<td style="padding:5px 6px;color:var(--muted)">' + (g.utm || '—') + '</td>';
+                    html += '</tr>';
+                });
+                html += '</tbody></table>';
+            } else {
+                html += '<div style="color:var(--muted);text-align:center;padding:16px">No game history found.</div>';
+            }
+            document.getElementById('modal-body').innerHTML = html;
+        })
+        .catch(function() {
+            document.getElementById('modal-body').innerHTML = '<div style="color:var(--danger);text-align:center;padding:24px">Failed to load player data.</div>';
+        });
+}
+
+function stat(label, val) {
+    return '<div style="background:var(--bg3);border-radius:6px;padding:10px;text-align:center"><div style="font-size:1.1rem;font-weight:600">' + Number(val).toLocaleString() + '</div><div style="font-size:0.72rem;color:var(--muted);margin-top:2px">' + label + '</div></div>';
+}
+
+function closePlayerModal() {
+    document.getElementById('player-modal').style.display = 'none';
+}
+document.getElementById('player-modal').addEventListener('click', function(e) {
+    if (e.target === this) closePlayerModal();
+});
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closePlayerModal();
+});
 </script>
 
 </body>
