@@ -1,10 +1,10 @@
 // Iron Dome – Service Worker
-// index.html: network-first, falls back to cache only when offline (no network at all)
+// index.html: network-first with 3s timeout (falls back to cache on poor/no signal)
 // Other assets: cache-first
 // API calls: network only
 
 const CACHE = 'irondome-v6';
-const ASSETS = ['./index.html', './manifest.json'];
+const ASSETS = ['./', './manifest.json'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
@@ -24,10 +24,18 @@ self.addEventListener('fetch', e => {
   // API calls: network only (never cache)
   if(e.request.url.includes('api.php')) return;
 
-  // Navigation (index.html): network-first, fall back to cache only if offline.
-  // Online users always get fresh content; shelter users can still open the app.
+  // Navigation (index.html): network-first with 3s timeout, fall back to cache.
+  // Poor/no signal in shelters causes fetch to hang — timeout ensures the app loads.
   if(e.request.mode === 'navigate'){
-    e.respondWith(fetch(e.request).catch(() => caches.match('./index.html')));
+    e.respondWith(
+      Promise.race([
+        fetch(e.request).then(res => {
+          caches.open(CACHE).then(c => c.put(e.request, res.clone()));
+          return res;
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('sw-timeout')), 3000))
+      ]).catch(() => caches.match(e.request))
+    );
     return;
   }
 
